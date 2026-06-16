@@ -1,0 +1,16 @@
+# Secrets
+.env
+.env.local
+
+#node / scripts
+node_modules
+
+# logs
+*.logs
+
+# OS Junk
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/

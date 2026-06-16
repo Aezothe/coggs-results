@@ -1,0 +1,48 @@
+body {
+    font-family: Arial;
+    padding: 20px;
+  }
+  
+  .filters {
+    margin-bottom: 15px;
+  }
+  
+  select {
+    margin-right: 10px;
+    padding: 5px;
+  }
+  
+  table {
+    border-collapse: collapse;
+    width: 50%;
+  }
+  
+  th, td {
+    border: 1px solid #ccc;
+    padding: 8px;
+    text-align: left;
+  }
+  
+  th {
+    background: #eee;
+  }
+  
+  .stage-details {
+      background: #f9f9f9;
+      font-size: 0.9em;
+    }
+  
+  .table-wrap { overflow-x: auto; }
+  
+  #leaderboard th, #leaderboard td {
+  white-space: nowrap;
+  }
+  
+  th.stage-group {
+  text-align: center;
+  }
+  
+  td.stage-total {
+  font-weight: 600;
+  background: #fafafa;
+  }
