@@ -57,10 +57,17 @@ async function runImport() {
       }
     })
 
-    const data = await res.json()
+    let data
+    let text
+
+    try {
+      data = await res.json()
+    } catch {
+      text = await res.text()
+    }
 
     if (!res.ok) {
-      output.textContent += 'Error: ' + data.error
+      output.textContent += 'Error:\n' + (data?.error || text || 'Unknown error')
       return
     }
 
