@@ -43,7 +43,6 @@ async function runImport() {
   const button = document.getElementById('importBtn')
   const output = document.getElementById('importOutput')
 
-  // ✅ disable + change text immediately
   button.disabled = true
   button.innerText = 'Running...'
 
@@ -57,17 +56,17 @@ async function runImport() {
       }
     })
 
-    let data
-    let text
+    const resText = await res.text()
 
+    let data
     try {
-      data = await res.json()
+      data = JSON.parse(resText)
     } catch {
-      text = await res.text()
+      data = { error: resText }
     }
 
     if (!res.ok) {
-      output.textContent += 'Error:\n' + (data?.error || text || 'Unknown error')
+      output.textContent += 'Error:\n' + (data.error || resText)
       return
     }
 
@@ -81,11 +80,10 @@ async function runImport() {
     output.textContent += '\nError: ' + err.message
 
   } finally {
-    // ✅ restore button state at the end
     button.disabled = false
     button.innerText = 'Run Import Entries'
 
-      await loadTable()
+    await loadTable()
   }
 }
 
@@ -186,7 +184,14 @@ function showApp() {
       return
     }
 
-    const data = await res.json()
+    const resText = await res.text()
+
+    let data
+    try {
+      data = JSON.parse(resText)
+    } catch {
+      data = { error: resText }
+    }
 
     renderTable(data)
   }
