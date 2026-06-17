@@ -35,8 +35,16 @@ function buildCsv(rows) {
   return lines.join('\n')
 }
 
+
 export default async function handler(req, res) {
+  const token = req.headers['x-admin-token']
+
+  if (token !== process.env.ADMIN_SECRET) {
+    return res.status(401).send('Unauthorized')
+  }
+
   const { eventId } = req.query
+
 
   if (!eventId) {
     return res.status(400).json({ error: 'Missing eventId' })

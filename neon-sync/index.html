@@ -1,6 +1,143 @@
 <!DOCTYPE html>
 <html>
-  <body>
-    <h2>This is an index page.</h2>
-  </body>
+<head>
+  <title>COGGS Admin</title>
+</head>
+<body>
+
+  <!-- LOGIN -->
+  <div id="login">
+    <h2>Admin Login</h2>
+    <input id="tokenInput" type="password" placeholder="Password" />
+    <button onclick="login()">Enter</button>
+  </div>
+
+  <!-- APP -->
+  <div id="app" style="display:none;">
+    <h2>COGGS Admin Tools</h2>
+
+    <div>
+      <input id="eventId" placeholder="Event ID (e.g. 17)" />
+
+      <button onclick="download()">Download CSV</button>
+      <button onclick="loadTable()">Load Attendees</button>
+    </div>
+
+    <br>
+
+    <table border="1" id="table"></table>
+  </div>
+
+<script>
+  const TOKEN_KEY = 'admin_token'
+
+  function login() {
+    const token = document.getElementById('tokenInput').value
+
+    if (!token) {
+      alert('Enter password')
+      return
+    }
+
+    localStorage.setItem(TOKEN_KEY, token)
+    showApp()
+  }
+
+  function getToken() {
+    return localStorage.getItem(TOKEN_KEY)
+  }
+
+  function showApp() {
+    document.getElementById('login').style.display = 'none'
+    document.getElementById('app').style.display = 'block'
+  }
+
+  // auto-login if token exists
+  if (getToken()) {
+    showApp()
+  }
+
+  // ---- CSV DOWNLOAD ----
+  async function download() {
+    const eventId = document.getElementById('eventId').value
+
+    if (!eventId) {
+      alert('Enter event ID')
+      return
+    }
+
+    const res = await fetch(`/api/export?eventId=${eventId}`, {
+      headers: {
+        'x-admin-token': getToken()
+      }
+    })
+
+    if (!res.ok) {
+      alert('Unauthorized or error')
+      return
+    }
+
+    const blob = await res.blob()
+    const url = window.URL.createObjectURL(blob)
+
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `event_${eventId}.csv`
+    a.click()
+  }
+
+  // ---- LOAD TABLE ----
+  async function loadTable() {
+    const eventId = document.getElementById('eventId').value
+
+    if (!eventId) {
+      alert('Enter event ID')
+      return
+    }
+
+    const res = await fetch(`/api/attendees?eventId=${eventId}`, {
+      headers: {
+        'x-admin-token': getToken()
+      }
+    })
+
+    if (!res.ok) {
+      alert('Unauthorized or error')
+      return
+    }
+
+    const data = await res.json()
+
+    renderTable(data)
+  }
+
+  function renderTable(rows) {
+    const table = document.getElementById('table')
+    table.innerHTML = ''
+
+    if (!rows.length) return
+
+    // headers
+    const headerRow = document.createElement('tr')
+    Object.keys(rows[0]).forEach(key => {
+      const th = document.createElement('th')
+      th.innerText = key
+      headerRow.appendChild(th)
+    })
+    table.appendChild(headerRow)
+
+    // rows
+    rows.forEach(r => {
+      const tr = document.createElement('tr')
+      Object.values(r).forEach(val => {
+        const td = document.createElement('td')
+        td.innerText = val ?? ''
+        tr.appendChild(td)
+      })
+      table.appendChild(tr)
+    })
+  }
+</script>
+
+</body>
 </html>
