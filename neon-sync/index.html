@@ -16,12 +16,14 @@
   <div id="app" style="display:none;">
     <h2>COGGS Admin Tools</h2>
 
-    <div>
-      <input id="eventId" placeholder="Event ID (e.g. 17)" />
+  <div>
+    <select id="eventSelect">
+      <option value="">Select event...</option>
+    </select>
 
-      <button onclick="download()">Download CSV</button>
-      <button onclick="loadTable()">Load Attendees</button>
-    </div>
+    <button onclick="download()">Download CSV</button>
+    <button onclick="loadTable()">Load Attendees</button>
+  </div>
 
     <br>
 
@@ -30,6 +32,31 @@
 
 <script>
   const TOKEN_KEY = 'admin_token'
+
+  async function loadEvents() {
+  const res = await fetch('/api/events', {
+    headers: {
+      'x-admin-token': getToken()
+    }
+  })
+
+  if (!res.ok) {
+    alert('Failed to load events')
+    return
+  }
+
+  const events = await res.json()
+
+  const select = document.getElementById('eventSelect')
+  select.innerHTML = '<option value="">Select event...</option>'
+
+  events.forEach(e => {
+    const option = document.createElement('option')
+    option.value = e.id
+    option.textContent = e.name || e.id
+    select.appendChild(option)
+  })
+}
 
   function login() {
     const token = document.getElementById('tokenInput').value
@@ -47,10 +74,12 @@
     return localStorage.getItem(TOKEN_KEY)
   }
 
-  function showApp() {
-    document.getElementById('login').style.display = 'none'
-    document.getElementById('app').style.display = 'block'
-  }
+function showApp() {
+  document.getElementById('login').style.display = 'none'
+  document.getElementById('app').style.display = 'block'
+
+  loadEvents()
+}
 
   // auto-login if token exists
   if (getToken()) {
@@ -59,7 +88,7 @@
 
   // ---- CSV DOWNLOAD ----
   async function download() {
-    const eventId = document.getElementById('eventId').value
+    const eventId = document.getElementById('eventSelect').value
 
     if (!eventId) {
       alert('Enter event ID')
