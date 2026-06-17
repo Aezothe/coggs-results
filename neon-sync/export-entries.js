@@ -75,7 +75,7 @@ async function run() {
 
   fs.writeFileSync(OUTPUT_FILE, lines.join('\n'))
 
-  console.log(`✅ CSV written: ${OUTPUT_FILE}`)
+  console.log(`CSV written: ${OUTPUT_FILE}`)
 }
 
 // ---- Run ----

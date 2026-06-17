@@ -22,7 +22,6 @@ function mapAttendees(rows) {
     first_name: clean(a.firstName) || null,
     last_name: clean(a.lastName) || null,
 
-    // ✅ fixed DOB handling
     date_of_birth: formatDob(a.dob),
 
     // custom fields (unchanged)
