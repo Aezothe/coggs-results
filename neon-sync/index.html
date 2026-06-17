@@ -43,6 +43,14 @@ async function runImport() {
   const button = document.getElementById('importBtn')
   const output = document.getElementById('importOutput')
 
+  try {
+  // your logic
+  } catch (err) {
+    console.error(err)
+    throw err  // 👈 must rethrow so API catches it
+  }
+
+
   button.disabled = true
   button.innerText = 'Running...'
 

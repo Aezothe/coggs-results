@@ -1,7 +1,21 @@
 import { runImport } from '../src/import-entries.js'
 
 export default async function handler(req, res) {
-  return res.json({ ok: true, logs: ['test log'] })
+  try {
+    const result = await runImport()
+
+    return res.json({
+      success: true,
+      logs: result?.logs || []
+    })
+
+  } catch (err) {
+    console.error('IMPORT ERROR:', err)
+
+    return res.status(500).json({
+      error: err.message || 'Unknown error'
+    })
+  }
 }
 
 export default async function handler(req, res) {
