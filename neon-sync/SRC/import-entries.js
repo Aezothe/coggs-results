@@ -8,16 +8,35 @@ const supabase = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
 
-function mapRegistrations(rows) {
-  return rows.map(r => ({
-    neon_registration_id: r.registrationId,
-    neon_account_id: r.accountId,
-    neon_event_id: r.eventId,
+function mapAttendees(rows) {
+  return rows.map(a => ({
+    neon_attendee_id: String(a.attendeeId),
 
-    event_name: r.eventName || null,
-    registration_date: r.registrationDate || null
+    neon_account_id: a.accountId || null,
+    neon_registrant_account_id: a.registrantAccountId || null,
+    neon_registration_id: a.registrationId || null,
+    neon_event_id: a._eventId || null,
+
+    event_name: a.eventName || a._eventName || null,
+
+    first_name: clean(a.firstName) || null,
+    last_name: clean(a.lastName) || null,
+
+    // ✅ fixed DOB handling
+    date_of_birth: formatDob(a.dob),
+
+    // custom fields (unchanged)
+    course: getCustomFieldValue(a.attendeeCustomFields, 'Course'),
+    class_name: getCustomFieldValue(a.attendeeCustomFields, 'Class'),
+
+    registration_status: a.registrationStatus || null,
+    registration_date: a.registrationDate || null,
+    marked_attended: a.markedAttended ?? null,
+
+    updated_at: new Date().toISOString()
   }))
 }
+``
 
 async function upsertRegistrations(rows) {
   const { error } = await supabase
@@ -27,6 +46,55 @@ async function upsertRegistrations(rows) {
     })
 
   if (error) throw error
+}
+
+function formatDob(dob) {
+  if (!dob || !dob.year || !dob.month || !dob.day) return null
+
+  const year = dob.year.padStart(4, '0')
+  const month = dob.month.padStart(2, '0')
+  const day = dob.day.padStart(2, '0')
+
+  return `${year}-${month}-${day}`  // ISO format
+}
+
+function getCustomFieldValue(customFields, fieldName) {
+  const field = (customFields || []).find(f => f.name === fieldName)
+  if (!field) return null
+
+  if (field.optionValues && field.optionValues.length > 0) {
+    return field.optionValues[0].name || null
+  }
+
+  return field.value || null
+}
+
+async function attachMemberIdsToAttendees(attendees) {
+  const accountIds = [...new Set(
+    attendees
+      .map(a => a.neon_account_id)
+      .filter(Boolean)
+  )]
+
+  if (accountIds.length === 0) {
+    return attendees.map(a => ({ ...a, member_id: null }))
+  }
+
+  const { data: members, error } = await supabase
+    .from('members')
+    .select('id, neon_account_id')
+    .in('neon_account_id', accountIds)
+
+  if (error) throw error
+
+  const memberMap = Object.fromEntries(
+    (members || []).map(m => [m.neon_account_id, m.id])
+  )
+
+  return attendees.map(a => ({
+    ...a,
+    member_id: memberMap[a.neon_account_id] || null
+  }))
 }
 
 async function attachMemberIds(registrations) {
@@ -47,48 +115,80 @@ async function attachMemberIds(registrations) {
   }))
 }
 
-async function fetchEvents() {
-  const res = await axios.get(
-    'https://api.neoncrm.com/v2/events',
-    {
-      auth: {
-        username: process.env.NEON_ORG_ID,
-        password: process.env.NEON_API_KEY
-      }
-    }
-  )
+function getEventId(event) {
+  return event.id ?? event.eventId ?? event['Event ID'] ?? null
+}
 
-  return res.data.events || []
+function getEventName(event) {
+  return event.name ?? event.eventName ?? event.title ?? null
+}
+
+async function fetchEvents() {
+  const res = await axios.get('https://api.neoncrm.com/v2/events', {
+    auth: {
+      username: process.env.NEON_ORG_ID,
+      password: process.env.NEON_API_KEY
+    },
+    headers: {
+      Accept: 'application/json'
+    }
+  })
+
+  const events = res.data.events || []
+
+  console.log(`Fetched ${events.length} events`)
+  console.log('Sample event object:', JSON.stringify(events[0], null, 2))
+
+  return events
 }
 
 
+
 // ---- Fetech Neon Events ----
-async function fetchRegistrations() {
+async function fetchAttendees() {
   const events = await fetchEvents()
   let all = []
 
   for (const event of events) {
-    const eventId = event.eventId
+    const eventId = getEventId(event)
+    const eventName = getEventName(event)
 
-    console.log(`Fetching registrations for event ${eventId}`)
+    if (!eventId) {
+      console.log('Skipping event with no usable id')
+      continue
+    }
+
+    console.log(`Fetching attendees for event ${eventId}`)
 
     const res = await axios.get(
-      `https://api.neoncrm.com/v2/events/${eventId}/eventRegistrations`,
+      `https://api.neoncrm.com/v2/events/${eventId}/attendees`,
       {
         auth: {
           username: process.env.NEON_ORG_ID,
           password: process.env.NEON_API_KEY
+        },
+        headers: {
+          Accept: 'application/json'
         }
       }
     )
 
-    const batch = res.data.eventRegistrations || []
+    const batch =
+      res.data.eventAttendees ||
+      res.data.attendees ||
+      []
 
-    console.log(`Event ${eventId}: ${batch.length} registrations`)
+    console.log(`Event ${eventId}: ${batch.length} attendees`)
 
-    all.push(...batch)
+    all.push(
+      ...batch.map(a => ({
+        ...a,
+        _eventName: eventName,
+        _eventId: eventId
+      }))
+    )
 
-    await sleep(200) // avoid rate limit
+    await sleep(200)
   }
 
   return all
@@ -204,6 +304,20 @@ async function upsertMembers(rows) {
   }
 }
 
+async function upsertAttendees(rows) {
+  const { error } = await supabase
+    .from('event_attendees')
+    .upsert(rows, {
+      onConflict: 'neon_attendee_id'
+    })
+
+  if (error) {
+    console.error('Supabase attendee upsert error:', error)
+    throw error
+  }
+}
+``
+
 // ---- Sanitize Inputs ----
 function clean(str) {
   return typeof str === 'string'
@@ -221,16 +335,21 @@ async function main() {
   const memberRows = mapMembers(members)
   await upsertMembers(memberRows)
 
-  console.log('Fetching registrations...')
-  const registrations = await fetchRegistrations()
+  console.log('Fetching registration payloads...')
 
-  console.log(`Got ${registrations.length} registrations`)
+  const attendees = await fetchAttendees()
 
-  let regRows = mapRegistrations(registrations)
+  console.log(`Got ${attendees.length} attendees`)
 
-  regRows = await attachMemberIds(regRows)
+  let attendeeRows = mapAttendees(attendees)
 
-  await upsertRegistrations(regRows)
+
+  console.log(`Flattened ${attendeeRows.length} attendees`)
+
+  attendeeRows = await attachMemberIdsToAttendees(attendeeRows)
+
+  console.log('Writing attendees to Supabase...')
+  await upsertAttendees(attendeeRows)
 
   console.log('Done.')
 }
