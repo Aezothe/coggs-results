@@ -99,7 +99,8 @@ function mapMembers(accounts) {
     neon_account_id: a['Account ID'] || null,
     first_name: clean(a['First Name']) || null,
     last_name: clean(a['Last Name']) || null,
-    email: a['Email 1'] || null
+    email: a['Email 1'] || null,
+    updated_at: new Date().toISOString()
   }))
 }
 
