@@ -43,8 +43,9 @@ async function runImport() {
   const button = document.getElementById('importBtn')
   const output = document.getElementById('importOutput')
 
-  // ✅ disable immediately
+  // ✅ disable + change text immediately
   button.disabled = true
+  button.innerText = 'Running...'
 
   output.textContent = 'Running import...\n'
 
@@ -71,9 +72,14 @@ async function runImport() {
 
   } catch (err) {
     output.textContent += '\nError: ' + err.message
+
+    await loadTable()
+
+
   } finally {
-    // ✅ always re-enable
+    // ✅ restore button state at the end
     button.disabled = false
+    button.innerText = 'Run Import Entries'
   }
 }
 
