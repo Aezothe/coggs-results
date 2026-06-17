@@ -73,13 +73,12 @@ async function runImport() {
   } catch (err) {
     output.textContent += '\nError: ' + err.message
 
-    await loadTable()
-
-
   } finally {
     // ✅ restore button state at the end
     button.disabled = false
     button.innerText = 'Run Import Entries'
+
+      await loadTable()
   }
 }
 
@@ -158,11 +157,6 @@ function showApp() {
     a.href = url
     a.download = `event_${eventId}.csv`
     a.click()
-  }
-
-  if (!eventId) {
-    alert('Select an event first')
-    return
   }
 
   // ---- LOAD TABLE ----
