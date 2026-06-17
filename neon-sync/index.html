@@ -17,7 +17,7 @@
     <h2>COGGS Admin Tools</h2>
 
   <div>
-    <select id="eventSelect">
+    <select id="eventSelect" onChange="loadTable()">
       <option value="">Select event...</option>
     </select>
 
@@ -27,11 +27,42 @@
 
     <br>
 
+    <br><br>
+
+    <button onclick="runImport()">Run Import Entries</button>
+
+    <pre id="importOutput" style="background:#eee; padding:10px;"></pre>
+
     <table border="1" id="table"></table>
   </div>
 
 <script>
   const TOKEN_KEY = 'admin_token'
+
+  async function runImport() {
+  const output = document.getElementById('importOutput')
+  output.textContent = 'Running import...\n'
+
+  const res = await fetch('/api/import', {
+    method: 'POST',
+    headers: {
+      'x-admin-token': getToken()
+    }
+  })
+
+  const data = await res.json()
+
+  if (!res.ok) {
+    output.textContent += 'Error: ' + data.error
+    return
+  }
+
+  data.logs.forEach(line => {
+    output.textContent += line + '\n'
+  })
+
+  output.textContent += '\n✅ Done'
+}
 
   async function loadEvents() {
   const res = await fetch('/api/events', {
@@ -113,6 +144,11 @@ function showApp() {
     a.href = url
     a.download = `event_${eventId}.csv`
     a.click()
+  }
+
+  if (!eventId) {
+    alert('Select an event first')
+    return
   }
 
   // ---- LOAD TABLE ----
