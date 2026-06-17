@@ -97,8 +97,8 @@ async function fetchMembers() {
 function mapMembers(accounts) {
   return accounts.map(a => ({
     neon_account_id: a['Account ID'] || null,
-    first_name: a['First Name'] || null,
-    last_name: a['Last Name'] || null,
+    first_name: clean(a['First Name']) || null,
+    last_name: clean(a['Last Name']) || null,
     email: a['Email 1'] || null
   }))
 }
@@ -117,18 +117,21 @@ async function upsertMembers(rows) {
   }
 }
 
+// ---- Sanitize Inputs ----
+function clean(str) {
+  return typeof str === 'string'
+    ? str.replace(/[<>]/g, '')   // basic strip
+    : str
+}
+
 // ---- Run ----
 async function main() {
   console.log('Fetching from Neon...')
   const accounts = await fetchMembers()
 
-  console.log('Pagination info:', res.data.pagination)
-  console.log(`Got ${accounts.length} accounts`)
-
-  // 👇 DEBUG THIS ON FIRST RUN
-  console.log(JSON.stringify(accounts[0], null, 2))
-
   const rows = mapMembers(accounts)
+
+  console.log(`Got ${accounts.length} accounts`)
 
   console.log('Writing to Supabase...')
   await upsertMembers(rows)
@@ -137,7 +140,11 @@ async function main() {
 }
 
 main().catch(err => {
-  console.error('Request failed:', err?.response?.status || err.message)
-  console.error('Response data:', err?.response?.data || null)
+  const status = err?.response?.status
+  const data = err?.response?.data
+
+  console.error('Request failed:', status || err.message)
+  console.error('Response data:', data || null)
+
   process.exit(1)
 })
