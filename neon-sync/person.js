@@ -41,11 +41,12 @@ async function searchPersons(q) {
     const pattern = `*${q}*`;
     // Search person_summary so we get counts in one query
     const url =
-      `${SUPABASE_URL}/rest/v1/person_summary` +
-      `?select=id,first_name,last_name,member_count,attendee_count,competitor_count` +
-      `&or=(first_name.ilike.${encodeURIComponent(pattern)},` +
-      `last_name.ilike.${encodeURIComponent(pattern)})` +
-      `&limit=30`;
+    `${SUPABASE_URL}/rest/v1/person_summary` +
+    `?select=id,first_name,last_name,competitor_count` +
+    `&competitor_count=gt.0` +
+    `&or=(first_name.ilike.${encodeURIComponent(pattern)},` +
+    `last_name.ilike.${encodeURIComponent(pattern)})` +
+    `&limit=30`;
   
     try {
       const res = await fetchWithAuth(url);
