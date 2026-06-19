@@ -111,7 +111,7 @@ export default async function handler(req, res) {
 
   const { eventId } = req.query
 
-  if (!eventId) {
+  if (!eventId) { 
     return res.status(400).send('Missing eventId')
   }
 
