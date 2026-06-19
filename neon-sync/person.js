@@ -59,7 +59,7 @@ async function searchPersons(q) {
         const btn = document.createElement('button');
         btn.style.cssText = 'display:block; margin:4px 0; padding:6px 10px; text-align:left; width:100%; max-width:500px; cursor:pointer;';
         const name = `${p.first_name || ''} ${p.last_name || ''}`.trim();
-        const meta = `member:${p.member_count} · attended:${p.attendee_count} · raced:${p.competitor_count}`;
+        const meta = `Events: ${p.competitor_count}`;
         btn.innerHTML = `<strong>${name}</strong> <span style="color:#666; font-size:12px;">${meta}</span>`;
         btn.onclick = () => {
           const u = new URL(window.location);
