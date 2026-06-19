@@ -33,49 +33,46 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // ---------- Search ----------
 async function searchPersons(q) {
-  q = (q || '').trim();
-  if (q.length < 2) {
-    elSearchResults.innerHTML = '';
-    return;
-  }
-  const pattern = `*${q}*`;
-  const url =
-    `${SUPABASE_URL}/rest/v1/person` +
-    `?select=id,first_name,last_name,email,display_name` +
-    `&or=(first_name.ilike.${encodeURIComponent(pattern)},` +
-    `last_name.ilike.${encodeURIComponent(pattern)},` +
-    `display_name.ilike.${encodeURIComponent(pattern)},` +
-    `email.ilike.${encodeURIComponent(pattern)})` +
-    `&limit=20`;
-
-  try {
-    const res = await fetchWithAuth(url);
-    const data = await res.json();
-    if (!Array.isArray(data) || !data.length) {
-      elSearchResults.innerHTML = '<em>No matches.</em>';
+    q = (q || '').trim();
+    if (q.length < 2) {
+      elSearchResults.innerHTML = '';
       return;
     }
-    elSearchResults.innerHTML = '';
-    data.forEach(p => {
-      const btn = document.createElement('button');
-      btn.style.cssText = 'display:block; margin:4px 0; padding:6px 10px; text-align:left; width:100%; max-width:500px; cursor:pointer;';
-      const name = p.display_name ||
-        `${p.first_name || ''} ${p.last_name || ''}`.trim();
-      btn.innerHTML = `<strong>${name}</strong>` +
-        (p.email ? ` <span style="color:#666;">· ${p.email}</span>` : '');
-      btn.onclick = () => {
-        // Update URL for shareable links
-        const u = new URL(window.location);
-        u.searchParams.set('person', p.id);
-        window.history.replaceState({}, '', u);
-        loadPersonResults(p.id);
-      };
-      elSearchResults.appendChild(btn);
-    });
-  } catch (err) {
-    elSearchResults.innerHTML = 'Error: ' + err.message;
+    const pattern = `*${q}*`;
+    // Search person_summary so we get counts in one query
+    const url =
+      `${SUPABASE_URL}/rest/v1/person_summary` +
+      `?select=id,first_name,last_name,member_count,attendee_count,competitor_count` +
+      `&or=(first_name.ilike.${encodeURIComponent(pattern)},` +
+      `last_name.ilike.${encodeURIComponent(pattern)})` +
+      `&limit=30`;
+  
+    try {
+      const res = await fetchWithAuth(url);
+      const data = await res.json();
+      if (!Array.isArray(data) || !data.length) {
+        elSearchResults.innerHTML = '<em>No matches.</em>';
+        return;
+      }
+      elSearchResults.innerHTML = '';
+      data.forEach(p => {
+        const btn = document.createElement('button');
+        btn.style.cssText = 'display:block; margin:4px 0; padding:6px 10px; text-align:left; width:100%; max-width:500px; cursor:pointer;';
+        const name = `${p.first_name || ''} ${p.last_name || ''}`.trim();
+        const meta = `member:${p.member_count} · attended:${p.attendee_count} · raced:${p.competitor_count}`;
+        btn.innerHTML = `<strong>${name}</strong> <span style="color:#666; font-size:12px;">${meta}</span>`;
+        btn.onclick = () => {
+          const u = new URL(window.location);
+          u.searchParams.set('person', p.id);
+          window.history.replaceState({}, '', u);
+          loadPersonResults(p.id);
+        };
+        elSearchResults.appendChild(btn);
+      });
+    } catch (err) {
+      elSearchResults.innerHTML = 'Error: ' + err.message;
+    }
   }
-}
 
 // ---------- Load results for one person ----------
 async function loadPersonResults(personId) {
@@ -107,7 +104,7 @@ async function loadPersonResults(personId) {
       `${person.first_name || ''} ${person.last_name || ''}`.trim();
     elPersonHeader.innerHTML =
       `<h3 style="margin-bottom:4px;">${name}</h3>` +
-      (person.email ? `<div style="color:#666; margin-bottom:12px;">${person.email}</div>` : '');
+      (person.email ? `<div style="color:#666; margin-bottom:12px;">${name}</div>` : '');
 
     if (!competitorIds.length) {
       elPersonHeader.innerHTML += '<p><em>No event results found.</em></p>';
