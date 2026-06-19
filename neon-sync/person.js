@@ -76,103 +76,92 @@ async function searchPersons(q) {
 
 // ---------- Load results for one person ----------
 async function loadPersonResults(personId) {
-  elPersonHeader.innerHTML = 'Loading...';
-  elTable.style.display = 'none';
-  elTbody.innerHTML = '';
-
-  try {
-    // 1. Person record
-    const personRes = await fetchWithAuth(
-      `${SUPABASE_URL}/rest/v1/person?id=eq.${personId}&select=id,first_name,last_name,email,display_name`
-    );
-    const personArr = await personRes.json();
-    if (!Array.isArray(personArr) || !personArr.length) {
-      elPersonHeader.innerHTML = '<em>Person not found.</em>';
-      return;
+    elPersonHeader.innerHTML = 'Loading...';
+    elTable.style.display = 'none';
+    elTbody.innerHTML = '';
+  
+    try {
+      // 1. Person
+      const personRes = await fetchWithAuth(
+        `${SUPABASE_URL}/rest/v1/person?id=eq.${personId}&select=id,first_name,last_name`
+      );
+      const personArr = await personRes.json();
+      if (!Array.isArray(personArr) || !personArr.length) {
+        elPersonHeader.innerHTML = '<em>Person not found.</em>';
+        return;
+      }
+      const person = personArr[0];
+      const name = `${person.first_name || ''} ${person.last_name || ''}`.trim() || 'Unknown';
+      elPersonHeader.innerHTML = `<h3 style="margin-bottom:12px;">${name}</h3>`;
+  
+      // 2. Competitor IDs for this person
+      const compRes = await fetchWithAuth(
+        `${SUPABASE_URL}/rest/v1/competitor?person_id=eq.${personId}&select=id`
+      );
+      const competitors = await compRes.json();
+      const competitorIds = (competitors || []).map(c => c.id);
+  
+      if (!competitorIds.length) {
+        elPersonHeader.innerHTML += '<p><em>No event results found.</em></p>';
+        return;
+      }
+  
+      // 3. Pull from standings view — has everything pre-joined
+      const competitorFilter = competitorIds.map(id => `"${id}"`).join(',');
+      const standingsRes = await fetchWithAuth(
+        `${SUPABASE_URL}/rest/v1/standings` +
+        `?competitor_id=in.(${competitorFilter})` +
+        `&select=entry_id,event_id,event_date,course_name,class_name,total_time_ms,is_dnf,position,percentile` +
+        `&order=event_date.desc`
+      );
+      const rows = await standingsRes.json();
+  
+      if (!Array.isArray(rows) || !rows.length) {
+        elPersonHeader.innerHTML += '<p><em>No event results found.</em></p>';
+        return;
+      }
+  
+      // 4. We need event name too — fetch it separately
+      const uniqueEventIds = [...new Set(rows.map(r => r.event_id))];
+      const eventFilter = uniqueEventIds.map(id => `"${id}"`).join(',');
+      const eventRes = await fetchWithAuth(
+        `${SUPABASE_URL}/rest/v1/event?id=in.(${eventFilter})&select=id,name`
+      );
+      const events = await eventRes.json();
+      const eventNameById = Object.fromEntries((events || []).map(e => [e.id, e.name]));
+  
+      // 5. Update header to match columns we have
+      const thead = elTable.querySelector('thead');
+      thead.innerHTML = `
+        <tr>
+          <th>Date</th>
+          <th>Event</th>
+          <th>Course</th>
+          <th>Class</th>
+          <th>Total Time</th>
+          <th>Place</th>
+          <th>Percentile</th>
+        </tr>`;
+  
+      // 6. Render rows
+      rows.forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML =
+          `<td>${r.event_date || ''}</td>` +
+          `<td>${eventNameById[r.event_id] || ''}</td>` +
+          `<td>${r.course_name || ''}</td>` +
+          `<td>${r.class_name || ''}</td>` +
+          `<td>${r.is_dnf ? 'DNF' : formatTime(r.total_time_ms)}</td>` +
+          `<td>${r.is_dnf ? '—' : (r.position || '')}</td>` +
+          `<td>${r.is_dnf || r.percentile == null ? '—' : (r.percentile * 100).toFixed(0) + '%'}</td>`;
+        elTbody.appendChild(tr);
+      });
+  
+      elTable.style.display = '';
+    } catch (err) {
+      elPersonHeader.innerHTML = 'Error: ' + err.message;
     }
-    const person = personArr[0];
-
-    // 2. All competitor IDs for this person
-    const compRes = await fetchWithAuth(
-      `${SUPABASE_URL}/rest/v1/competitor?person_id=eq.${personId}&select=id`
-    );
-    const competitors = await compRes.json();
-    const competitorIds = (competitors || []).map(c => c.id);
-
-    // Header
-    const name = person.display_name ||
-      `${person.first_name || ''} ${person.last_name || ''}`.trim();
-    elPersonHeader.innerHTML =
-      `<h3 style="margin-bottom:4px;">${name}</h3>` +
-      (person.email ? `<div style="color:#666; margin-bottom:12px;">${name}</div>` : '');
-
-    if (!competitorIds.length) {
-      elPersonHeader.innerHTML += '<p><em>No event results found.</em></p>';
-      return;
-    }
-
-    // 3. Pull entries for those competitors, with event + total time + DNF
-    //    Use entry table joined to event via PostgREST embed.
-    const competitorFilter = competitorIds.map(id => `"${id}"`).join(',');
-    const entryRes = await fetchWithAuth(
-      `${SUPABASE_URL}/rest/v1/entry` +
-      `?competitor_id=in.(${competitorFilter})` +
-      `&select=id,competitor_id,event_id,course_name,class_name,total_time_ms,is_dnf,event:event_id(id,name,event_date)`
-    );
-    const entries = await entryRes.json();
-
-    if (!Array.isArray(entries) || !entries.length) {
-      elPersonHeader.innerHTML += '<p><em>No event results found.</em></p>';
-      return;
-    }
-
-    // 4. For each entry, fetch their place from the results view (in cohort)
-    //    We compute place client-side by pulling all entries in the same
-    //    event/course/class and sorting.
-    const eventGroups = {};
-    for (const e of entries) {
-      const key = `${e.event_id}||${e.course_name || ''}||${e.class_name || ''}`;
-      (eventGroups[key] ||= []).push(e);
-    }
-
-    const placeMap = {}; // entry_id -> place
-    await Promise.all(Object.keys(eventGroups).map(async (key) => {
-      const [eventId, course, klass] = key.split('||');
-      let url = `${SUPABASE_URL}/rest/v1/entry?event_id=eq.${eventId}&select=id,total_time_ms,is_dnf`;
-      if (course) url += `&course_name=eq.${encodeURIComponent(course)}`;
-      if (klass)  url += `&class_name=eq.${encodeURIComponent(klass)}`;
-      const r = await fetchWithAuth(url);
-      const cohort = await r.json();
-      if (!Array.isArray(cohort)) return;
-      const sorted = cohort
-        .filter(x => !x.is_dnf && x.total_time_ms != null)
-        .sort((a, b) => a.total_time_ms - b.total_time_ms);
-      sorted.forEach((row, i) => { placeMap[row.id] = i + 1; });
-    }));
-
-    // 5. Render rows sorted by event_date desc
-    const rendered = entries
-      .filter(e => e.event)
-      .sort((a, b) => (b.event?.event_date || '').localeCompare(a.event?.event_date || ''));
-
-    rendered.forEach(e => {
-      const tr = document.createElement('tr');
-      const place = placeMap[e.id] || '';
-      tr.innerHTML =
-        `<td>${e.event?.event_date || ''}</td>` +
-        `<td>${e.event?.name || ''}</td>` +
-        `<td>${e.course_name || ''}</td>` +
-        `<td>${e.class_name || ''}</td>` +
-        `<td>${e.is_dnf ? 'DNF' : formatTime(e.total_time_ms)}</td>` +
-        `<td>${place}</td>`;
-      elTbody.appendChild(tr);
-    });
-
-    elTable.style.display = '';
-  } catch (err) {
-    elPersonHeader.innerHTML = 'Error: ' + err.message;
   }
-}
 
 // ---------- Format ----------
 function formatTime(ms) {
