@@ -6,13 +6,6 @@
 </head>
 <body>
   <h2>Person Results</h2>
-<div id="percentileChartWrap" style="display:none; max-width: 800px; margin: 16px 0;">
-    <h3 style="margin-bottom: 4px;">Finish percentile over time</h3>
-    <canvas id="percentileChart" height="120"></canvas>
-    <p style="font-size: 0.85em; color: #666; margin-top: 4px;">
-      Higher is better. 100% = won the class. DNF events are not plotted.
-    </p>
-  </div>
   <div class="filters">
     <label>Search:</label>
     <input
@@ -47,7 +40,7 @@
   <p style="margin-top: 20px;">
     <a href="leaderboard.html">← Back to leaderboard</a>
   </p>
-  https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
   <script src="config.js"></script>
   <script src="person.js"></script>
 </body>
