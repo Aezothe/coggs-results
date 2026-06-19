@@ -177,23 +177,43 @@ function formatTime(ms) {
 }
 
 function renderPercentileChart(rows) {
-    const wrap = document.getElementById('percentileChartWrap');
-    const canvas = document.getElementById('percentileChart');
-  
     // Destroy any chart from a previous person.
     if (percentileChart) {
       percentileChart.destroy();
       percentileChart = null;
     }
   
-    // Filter out DNFs and rows missing percentile, and sort ASC by date for the chart.
+    // Find or create the wrap.
+    let wrap = document.getElementById('percentileChartWrap');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'percentileChartWrap';
+      wrap.style.maxWidth = '800px';
+      wrap.style.margin = '16px 0';
+      wrap.innerHTML = `
+        <h3 style="margin-bottom: 4px;">Finish percentile over time</h3>
+        <canvas id="percentileChart" height="120"></canvas>
+        <p style="font-size: 0.85em; color: #666; margin-top: 4px;">
+          Higher is better. 100% = won the class. DNF events are not plotted.
+        </p>
+      `;
+      const tableWrap = document.querySelector('.table-wrap');
+      if (tableWrap && tableWrap.parentNode) {
+        tableWrap.parentNode.insertBefore(wrap, tableWrap);
+      } else {
+        document.body.appendChild(wrap);
+      }
+    }
+  
+    const canvas = document.getElementById('percentileChart');
+    if (!canvas) return;
+  
+    // Shape the data.
     const points = (rows || [])
       .filter(r => !r.is_dnf && r.percentile != null && r.event_date)
       .map(r => ({
         date: r.event_date,
-        pct: Number(r.percentile) * 100, // stored as 0-1
-        event_id: r.event_id,
-        course_name: r.course_name,
+        pct: Number(r.percentile) * 100,
         class_name: r.class_name,
         position: r.position,
       }))
@@ -203,8 +223,13 @@ function renderPercentileChart(rows) {
       wrap.style.display = 'none';
       return;
     }
-  
     wrap.style.display = '';
+  
+    // Safety: bail if Chart.js isn't loaded yet.
+    if (typeof Chart === 'undefined') {
+      console.warn('Chart.js not loaded — skipping percentile chart.');
+      return;
+    }
   
     percentileChart = new Chart(canvas, {
       type: 'line',
@@ -221,14 +246,8 @@ function renderPercentileChart(rows) {
       options: {
         responsive: true,
         scales: {
-          y: {
-            min: 0,
-            max: 100,
-            title: { display: true, text: 'Top % finish (higher is better)' },
-          },
-          x: {
-            title: { display: true, text: 'Event date' },
-          },
+          y: { min: 0, max: 100, title: { display: true, text: 'Top % finish (higher is better)' } },
+          x: { title: { display: true, text: 'Event date' } },
         },
         plugins: {
           legend: { display: false },
