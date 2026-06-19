@@ -2,6 +2,7 @@ const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.APP_CONFIG;
 
 let elSearch, elSearchResults, elPersonHeader, elTable, elTbody;
 let searchTimer = null;
+let percentileChart = null;
 
 async function fetchWithAuth(url) {
   return fetch(url, {
@@ -144,6 +145,8 @@ async function loadPersonResults(personId) {
           <th>Percentile</th>
         </tr>`;
   
+    renderPercentileChart(rows);
+
       // 6. Render rows
       rows.forEach(r => {
         const tr = document.createElement('tr');
@@ -172,3 +175,74 @@ function formatTime(ms) {
   const sec = (s % 60).toFixed(2);
   return `${m}:${sec.padStart(5, '0')}`;
 }
+
+function renderPercentileChart(rows) {
+    const wrap = document.getElementById('percentileChartWrap');
+    const canvas = document.getElementById('percentileChart');
+  
+    // Destroy any chart from a previous person.
+    if (percentileChart) {
+      percentileChart.destroy();
+      percentileChart = null;
+    }
+  
+    // Filter out DNFs and rows missing percentile, and sort ASC by date for the chart.
+    const points = (rows || [])
+      .filter(r => !r.is_dnf && r.percentile != null && r.event_date)
+      .map(r => ({
+        date: r.event_date,
+        pct: Number(r.percentile) * 100, // stored as 0-1
+        event_id: r.event_id,
+        course_name: r.course_name,
+        class_name: r.class_name,
+        position: r.position,
+      }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  
+    if (!points.length) {
+      wrap.style.display = 'none';
+      return;
+    }
+  
+    wrap.style.display = '';
+  
+    percentileChart = new Chart(canvas, {
+      type: 'line',
+      data: {
+        labels: points.map(p => p.date),
+        datasets: [{
+          label: 'Top % finish',
+          data: points.map(p => p.pct),
+          tension: 0.25,
+          pointRadius: 5,
+          pointHoverRadius: 7,
+        }],
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            min: 0,
+            max: 100,
+            title: { display: true, text: 'Top % finish (higher is better)' },
+          },
+          x: {
+            title: { display: true, text: 'Event date' },
+          },
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => {
+                const p = points[ctx.dataIndex];
+                const cls = p.class_name ? ` — ${p.class_name}` : '';
+                const pos = p.position ? ` (P${p.position})` : '';
+                return `${p.pct.toFixed(0)}%${cls}${pos}`;
+              },
+            },
+          },
+        },
+      },
+    });
+  }
