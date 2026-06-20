@@ -1,4 +1,4 @@
-import { formatTime, escapeHtml } from './lib/format.js';
+import { formatTime, escapeHtml } from '../lib/format.js';
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.APP_CONFIG;
 
 let elSearch, elSearchResults, elPersonHeader, elTable, elTbody;
