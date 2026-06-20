@@ -234,22 +234,6 @@ function renderRows(rows, ctx) {
   }
 }
 
-// ---------- Format helpers ----------
-function formatTime(ms) {
-  if (ms == null) return '';
-  const s = ms / 1000;
-  const m = Math.floor(s / 60);
-  const sec = (s % 60).toFixed(2);
-  return `${m}:${sec.padStart(5, '0')}`;
-}
-
-function escapeHtml(s) {
-  return String(s ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;');
-}
-
 // ---------- Chart (unchanged) ----------
 function renderPercentileChart(rows) {
   if (percentileChart) { percentileChart.destroy(); percentileChart = null; }
