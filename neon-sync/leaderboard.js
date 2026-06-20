@@ -125,8 +125,6 @@ async function loadEvents() {
 
 // ---------- Load everything for an event ----------
 async function loadAllForEvent(eventId) {
-  leaderboard = [];
-  stages = [];
   AppState.stageTimes = {};
   AppState.sectorTimes = {};
   AppState.stagePlace = {};
