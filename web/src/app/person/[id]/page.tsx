@@ -105,12 +105,6 @@ export default async function PersonPage({
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
-        <nav className="mb-4 text-sm">
-        <Link href="/leaderboard" className="text-blue-600 hover:underline">
-            ← Leaderboard
-        </Link>
-        </nav>
-
       <h1 className="text-2xl font-semibold mb-1">{displayName}</h1>
       <p className="text-sm text-gray-500 mb-6"></p>
         {results.length > 0 && (
