@@ -1,4 +1,4 @@
-import { formatTime } from './lib/format.js';
+import { formatTime, escapeHtml } from './lib/format.js';
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.APP_CONFIG;
 
 // ---------- State ----------
