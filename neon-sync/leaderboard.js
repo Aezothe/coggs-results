@@ -1,3 +1,4 @@
+import { formatTime } from './lib/format.js';
 const { SUPABASE_URL, SUPABASE_ANON_KEY } = window.APP_CONFIG;
 
 // ---------- State ----------
@@ -428,13 +429,4 @@ function renderTable() {
     tr.innerHTML = html;
     tbody.appendChild(tr);
   });
-}
-
-// ---------- Format ----------
-function formatTime(ms) {
-  if (ms == null) return '';
-  const s = ms / 1000;
-  const m = Math.floor(s / 60);
-  const sec = (s % 60).toFixed(2);
-  return `${m}:${sec.padStart(5, '0')}`;
 }

@@ -1,28 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
+import { safe, buildGenderDob } from '../lib/format.js'
 
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_SERVICE_ROLE_KEY
 )
-
-function safe(val) {
-  if (val === null || val === undefined || val === '') return ''
-  return String(val)
-}
-
-function formatSiTimingDob(iso) {
-  if (!iso) return ''
-  const [year, month, day] = iso.split('-')
-  if (!year || !month || !day) return ''
-  return `${Number(month)}/${Number(day)}/${year}`
-}
-
-function buildGenderDob(gender, iso) {
-  const dob = formatSiTimingDob(iso)
-  const g = gender ? String(gender).trim().toUpperCase().slice(0, 1) : ''
-  if (!dob) return ''
-  return `${g}${dob}`
-}
 
 function buildCsv(rows) {
   const headers = [
