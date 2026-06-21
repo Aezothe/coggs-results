@@ -40,9 +40,13 @@ export function PeopleList({ people }: { people: PersonRow[] }) {
           {filtered.map((p) => (
             <li key={p.id}>
                 <Link href={`/person/${p.id}`}
-                className="block py-2 hover:bg-gray-50 px-2 -mx-2 rounded"
+                className="flex items-center justify-between py-2 hover:bg-gray-50 px-2 -mx-2 rounded"
                 >
-                {displayName(p)}
+                <span>{displayName(p)}</span>
+                <span className="text-sm text-gray-500 tabular-nums">
+                  {p.event_count} event{p.event_count === 1 ? "" : "s"}
+                </span>
+
               </Link>
             </li>
           ))}
