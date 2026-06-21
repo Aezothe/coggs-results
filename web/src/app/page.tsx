@@ -9,6 +9,15 @@ export default function HomePage() {
       </p>
 
       <div className="grid gap-4 sm:grid-cols-2">
+
+      <Link href="/events"
+          className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
+        >
+          <h2 className="text-lg font-medium mb-1">Events →</h2>
+          <p className="text-sm text-gray-600">
+            Search COGGS timed events
+          </p>
+        </Link>
         <Link href="/leaderboard"
           className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
         >
@@ -27,14 +36,6 @@ export default function HomePage() {
           </p>
         </Link>
 
-        <Link href="/events"
-          className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
-        >
-          <h2 className="text-lg font-medium mb-1">Events →</h2>
-          <p className="text-sm text-gray-600">
-            Search COGGS timed events
-          </p>
-        </Link>
       </div>
     </main>
   );

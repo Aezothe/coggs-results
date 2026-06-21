@@ -4,6 +4,9 @@ export function SiteNav() {
   return (
     <nav className="border-b border-gray-200 bg-white">
       <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-6 text-sm">
+        <Link href="/events" className="hover:text-gray-900">
+            Events
+          </Link>
         <Link href="/" className="font-semibold text-gray-900">
           COGGS Results
         </Link>
@@ -13,9 +16,6 @@ export function SiteNav() {
           </Link>
           <Link href="/people" className="hover:text-gray-900">
             People
-          </Link>
-          <Link href="/events" className="hover:text-gray-900">
-            Events
           </Link>
         </div>
       </div>
