@@ -26,6 +26,15 @@ export default function HomePage() {
             Search competitors and view their results over time.
           </p>
         </Link>
+
+        <Link href="/events"
+          className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
+        >
+          <h2 className="text-lg font-medium mb-1">Events →</h2>
+          <p className="text-sm text-gray-600">
+            Search COGGS timed events
+          </p>
+        </Link>
       </div>
     </main>
   );
