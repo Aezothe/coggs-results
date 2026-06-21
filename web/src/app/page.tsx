@@ -26,13 +26,20 @@ export default function HomePage() {
             Standings for any event, filtered by course or class.
           </p>
         </Link>
-
         <Link href="/people"
           className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
         >
           <h2 className="text-lg font-medium mb-1">People →</h2>
           <p className="text-sm text-gray-600">
             Search competitors and view their results over time.
+          </p>
+        </Link>
+        <Link href="/stages"
+          className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
+        >
+          <h2 className="text-lg font-medium mb-1">Stages →</h2>
+          <p className="text-sm text-gray-600">
+            Search stages used in COGGS events.
           </p>
         </Link>
 
