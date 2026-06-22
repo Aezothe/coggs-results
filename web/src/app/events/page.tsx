@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 // Always fetch fresh on each request. We'll add caching later.
 export const dynamic = "force-dynamic";
@@ -36,9 +37,13 @@ export default async function EventsPage() {
       ) : (
         <ul className="divide-y divide-gray-200">
           {events.map((e) => (
-            <li key={e.id} className="py-3 flex justify-between">
-              <span>{e.name}</span>
-              <span className="text-gray-500">{e.event_date ?? ""}</span>
+            <li key={e.id}>
+              <Link href={`/leaderboard/${e.id}`}
+                className="flex justify-between items-center py-3 px-2 -mx-2 hover:bg-gray-50 rounded"
+              >
+                <span className="text-gray-900">{e.name}</span>
+                <span className="text-gray-500 text-sm">{e.event_date ?? ""}</span>
+              </Link>
             </li>
           ))}
         </ul>

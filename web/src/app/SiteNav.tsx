@@ -11,9 +11,6 @@ export function SiteNav() {
             <Link href="/events" className="hover:text-gray-900">
             Events
           </Link>
-          <Link href="/leaderboard" className="hover:text-gray-900">
-            Leaderboard
-          </Link>
           <Link href="/people" className="hover:text-gray-900">
             People
           </Link>

@@ -41,12 +41,11 @@ export function StandingsTable({
     nextClass: string,
   ) {
     const sp = new URLSearchParams();
-    sp.set("event", eventId);
     sp.set("scope", nextScope);
     if (nextCourse) sp.set("course", nextCourse);
     if (nextClass) sp.set("class", nextClass);
     startTransition(() => {
-      router.replace(`/leaderboard?${sp.toString()}`, { scroll: false });
+      router.replace(`/leaderboard/${eventId}?${sp.toString()}`, { scroll: false });
     });
   }
 
