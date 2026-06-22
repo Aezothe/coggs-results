@@ -3,37 +3,63 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/format";
-import type { StandingsRow, StageTime } from "./page";
+import type { StandingsRow, StageTime, SplitTime } from "./page";
+
+type SplitDef = {
+  split_segment_id: string;
+  split_name: string;
+  split_ordinal: number;
+};
 
 export function StandingsTable({
   standings,
   stageTimes,
+  splitTimes,
   courses,
   classes,
   initialCourse,
   initialClass,
+  initialShowSplits,
+  initialSelectedStageIds,
   eventId,
 }: {
   standings: StandingsRow[];
   stageTimes: StageTime[];
+  splitTimes: SplitTime[];
   courses: string[];
   classes: string[];
   initialCourse: string;
   initialClass: string;
+  initialShowSplits: boolean;
+  initialSelectedStageIds: string[];
   eventId: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
-  // Course is required — no "All"
   const [course, setCourse] = useState(initialCourse);
-  // Class is optional — blank means "overall within course"
   const [klass, setKlass] = useState(initialClass);
+  const [showSplits, setShowSplits] = useState(initialShowSplits);
+  const [selectedStageIds, setSelectedStageIds] = useState<string[]>(
+    initialSelectedStageIds,
+  );
 
-  function updateUrl(nextCourse: string, nextClass: string) {
+  function updateUrl(opts: {
+    nextCourse?: string;
+    nextClass?: string;
+    nextShowSplits?: boolean;
+    nextStageIds?: string[];
+  }) {
+    const nextCourse = opts.nextCourse ?? course;
+    const nextClass = opts.nextClass ?? klass;
+    const nextShowSplits = opts.nextShowSplits ?? showSplits;
+    const nextStageIds = opts.nextStageIds ?? selectedStageIds;
+
     const sp = new URLSearchParams();
     if (nextCourse) sp.set("course", nextCourse);
     if (nextClass) sp.set("class", nextClass);
+    if (nextShowSplits) sp.set("splits", "1");
+    if (nextStageIds.length > 0) sp.set("stages", nextStageIds.join(","));
 
     startTransition(() => {
       const qs = sp.toString();
@@ -45,23 +71,38 @@ export function StandingsTable({
   }
 
   function onCourseChange(v: string) {
-    // When course changes, reset class
     setCourse(v);
     setKlass("");
-    updateUrl(v, "");
+    setSelectedStageIds([]); // course change = different stage set
+    updateUrl({ nextCourse: v, nextClass: "", nextStageIds: [] });
   }
 
   function onClassChange(v: string) {
     setKlass(v);
-    updateUrl(course, v);
+    updateUrl({ nextClass: v });
   }
 
-  // Dynamic "mode":
-  // - no class selected => show overall-for-course
-  // - class selected    => show class-for-course
+  function onToggleSplits() {
+    const next = !showSplits;
+    setShowSplits(next);
+    updateUrl({ nextShowSplits: next });
+  }
+
+  function onToggleStage(stageId: string) {
+    const next = selectedStageIds.includes(stageId)
+      ? selectedStageIds.filter((id) => id !== stageId)
+      : [...selectedStageIds, stageId];
+    setSelectedStageIds(next);
+    updateUrl({ nextStageIds: next });
+  }
+
+  function onSelectAllStages() {
+    setSelectedStageIds([]);
+    updateUrl({ nextStageIds: [] });
+  }
+
   const displayScope = klass ? "class" : "overall";
 
-  // Class options only for the selected course
   const visibleClasses = useMemo(() => {
     const set = new Set<string>();
     for (const r of standings) {
@@ -72,10 +113,6 @@ export function StandingsTable({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [course, standings]);
 
-  // Filter standings to:
-  // 1) selected course
-  // 2) selected scope (overall or class)
-  // 3) selected class if one is chosen
   const filtered = useMemo(() => {
     const rows = standings.filter((r) => {
       if (r.course_name !== course) return false;
@@ -99,21 +136,56 @@ export function StandingsTable({
     });
   }, [standings, course, displayScope, klass]);
 
-  // entry_id -> (stage_id -> stage row)
+  // entry_id -> stage_id -> stage time row
   const stageMap = useMemo(() => {
     const map = new Map<string, Map<string, StageTime>>();
-
     for (const row of stageTimes) {
-      if (!map.has(row.entry_id)) {
-        map.set(row.entry_id, new Map());
-      }
+      if (!map.has(row.entry_id)) map.set(row.entry_id, new Map());
       map.get(row.entry_id)!.set(row.stage_id, row);
     }
-
     return map;
   }, [stageTimes]);
 
-  // Only show stages that actually have data for the CURRENT filtered view
+  // entry_id -> split_segment_id -> split time row
+  const splitMap = useMemo(() => {
+    const map = new Map<string, Map<string, SplitTime>>();
+    for (const row of splitTimes) {
+      if (!map.has(row.entry_id)) map.set(row.entry_id, new Map());
+      map.get(row.entry_id)!.set(row.split_segment_id, row);
+    }
+    return map;
+  }, [splitTimes]);
+
+  // canonical stage_id -> splits (in ordinal order)
+  const splitsByStageId = useMemo(() => {
+    const map = new Map<string, Map<string, SplitDef>>();
+    for (const row of splitTimes) {
+      if (!map.has(row.parent_stage_id)) {
+        map.set(row.parent_stage_id, new Map());
+      }
+      const inner = map.get(row.parent_stage_id)!;
+      if (!inner.has(row.split_segment_id)) {
+        inner.set(row.split_segment_id, {
+          split_segment_id: row.split_segment_id,
+          split_name: row.split_name,
+          split_ordinal: row.split_ordinal,
+        });
+      }
+    }
+
+    const out = new Map<string, SplitDef[]>();
+    for (const [stageId, inner] of map.entries()) {
+      out.set(
+        stageId,
+        Array.from(inner.values()).sort(
+          (a, b) => a.split_ordinal - b.split_ordinal,
+        ),
+      );
+    }
+    return out;
+  }, [splitTimes]);
+
+  // All stages that have data for currently-filtered riders
   const stageList = useMemo(() => {
     const map = new Map<string, { name: string; ordinal: number }>();
 
@@ -138,9 +210,17 @@ export function StandingsTable({
       .sort((a, b) => a.ordinal - b.ordinal);
   }, [filtered, stageMap]);
 
+  // After stage filter
+  const visibleStages = useMemo(() => {
+    if (selectedStageIds.length === 0) return stageList;
+    const set = new Set(selectedStageIds);
+    return stageList.filter((s) => set.has(s.stage_id));
+  }, [stageList, selectedStageIds]);
+
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-4 items-center">
+      {/* Top filter row */}
+      <div className="flex flex-wrap gap-3 mb-3 items-center">
         <label className="flex items-center gap-2 text-sm">
           <span className="text-gray-600">Course:</span>
           <select
@@ -172,22 +252,53 @@ export function StandingsTable({
           </select>
         </label>
 
-        {klass && (
-          <button
-            onClick={() => {
-              setKlass("");
-              updateUrl(course, "");
-            }}
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Clear class filter
-          </button>
-        )}
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={showSplits}
+            onChange={onToggleSplits}
+          />
+          <span className="text-gray-700">Show splits</span>
+        </label>
 
         <span className="ml-auto text-sm text-gray-500 self-center">
-          {filtered.length} of {standings.filter((r) => r.course_name === course).length}
+          {filtered.length} of{" "}
+          {standings.filter((r) => r.course_name === course).length}
         </span>
       </div>
+
+      {/* Stage filter row */}
+      {stageList.length > 0 && (
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-sm">
+          <span className="text-gray-600">Stages:</span>
+          {stageList.map((s) => {
+            const checked =
+              selectedStageIds.length === 0 ||
+              selectedStageIds.includes(s.stage_id);
+            return (
+              <label
+                key={s.stage_id}
+                className="flex items-center gap-1 cursor-pointer"
+              >
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() => onToggleStage(s.stage_id)}
+                />
+                <span>{s.name}</span>
+              </label>
+            );
+          })}
+          {selectedStageIds.length > 0 && (
+            <button
+              onClick={onSelectAllStages}
+              className="text-blue-600 hover:underline"
+            >
+              Show all
+            </button>
+          )}
+        </div>
+      )}
 
       {filtered.length === 0 ? (
         <p className="text-gray-500">
@@ -203,16 +314,41 @@ export function StandingsTable({
                 <th className="text-left px-3 py-2">Course</th>
                 <th className="text-left px-3 py-2">Class</th>
 
-                {stageList.map((s) => (
-                  <th
-                    key={s.stage_id}
-                    className="text-right px-4 py-2 min-w-[90px]"
-                  >
-                    {s.name}
-                  </th>
-                ))}
+                {visibleStages.map((s) => {
+                  const splits = showSplits
+                    ? (splitsByStageId.get(s.stage_id) ?? [])
+                    : [];
 
-                <th className="text-right px-4 py-2 min-w-[90px]">Total</th>
+                  return (
+                    <>
+                      <th
+                        key={`stage-${s.stage_id}`}
+                        className="text-right px-4 py-2 min-w-[90px] border-l border-gray-200"
+                      >
+                        <div>{s.name}</div>
+                        {splits.length > 0 && (
+                          <div className="text-xs font-normal text-gray-500">
+                            stage
+                          </div>
+                        )}
+                      </th>
+                      {splits.map((sp) => (
+                        <th
+                          key={`split-${sp.split_segment_id}`}
+                          className="text-right px-3 py-2 min-w-[75px] bg-gray-50"
+                        >
+                          <div className="text-xs font-normal text-gray-600">
+                            {sp.split_name}
+                          </div>
+                        </th>
+                      ))}
+                    </>
+                  );
+                })}
+
+                <th className="text-right px-4 py-2 min-w-[90px] border-l border-gray-200">
+                  Total
+                </th>
                 <th className="text-right px-4 py-2 min-w-[90px]">Back</th>
               </tr>
             </thead>
@@ -221,37 +357,73 @@ export function StandingsTable({
               {filtered.map((row) => (
                 <tr key={row.entry_id}>
                   <td className="px-3 py-2 align-top">
-                    {row.is_dnf ? "—" : row.position ?? ""}
+                    {row.is_dnf ? "—" : (row.position ?? "")}
                   </td>
 
                   <td className="px-3 py-2 align-top">
                     {row.first_name} {row.last_name}
                   </td>
 
-                  <td className="px-3 py-2 align-top">{row.course_name ?? ""}</td>
+                  <td className="px-3 py-2 align-top">
+                    {row.course_name ?? ""}
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    {row.class_name ?? ""}
+                  </td>
 
-                  <td className="px-3 py-2 align-top">{row.class_name ?? ""}</td>
-
-                  {stageList.map((s) => {
+                  {visibleStages.map((s) => {
                     const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
+                    const splits = showSplits
+                      ? (splitsByStageId.get(s.stage_id) ?? [])
+                      : [];
 
                     return (
-                      <td
-                        key={s.stage_id}
-                        className="px-4 py-2 text-right tabular-nums align-top min-w-[90px]"
-                      >
-                        <div className="leading-tight">
-                          <div>{stage?.time_ms ? formatTime(stage.time_ms) : ""}</div>
-                          <div className="text-xs text-gray-500">
-                            {stage?.stage_position ?? ""}
+                      <>
+                        <td
+                          key={`stage-${s.stage_id}`}
+                          className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-gray-200"
+                        >
+                          <div className="leading-tight">
+                            <div>
+                              {stage?.time_ms
+                                ? formatTime(stage.time_ms)
+                                : ""}
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              {stage?.stage_position ?? ""}
+                            </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
+                        {splits.map((sp) => {
+                          const split = splitMap
+                            .get(row.entry_id)
+                            ?.get(sp.split_segment_id);
+                          return (
+                            <td
+                              key={`split-${sp.split_segment_id}`}
+                              className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-gray-50"
+                            >
+                              <div className="leading-tight">
+                                <div className="text-gray-700">
+                                  {split?.time_ms
+                                    ? formatTime(split.time_ms)
+                                    : ""}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {split?.split_position ?? ""}
+                                </div>
+                              </div>
+                            </td>
+                          );
+                        })}
+                      </>
                     );
                   })}
 
-                  <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px]">
-                    <div>{row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}</div>
+                  <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-gray-200">
+                    <div>
+                      {row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}
+                    </div>
                     <div className="text-xs text-gray-500">&nbsp;</div>
                   </td>
 

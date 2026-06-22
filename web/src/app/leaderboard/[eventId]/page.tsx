@@ -37,6 +37,18 @@ export type StageTime = {
   stage_position: number | null;
 };
 
+export type SplitTime = {
+  entry_id: string;
+  split_segment_id: string;
+  split_name: string;
+  split_ordinal: number;
+  parent_segment_id: string;
+  parent_stage_id: string;
+  parent_stage_ordinal: number;
+  time_ms: number | null;
+  split_position: number | null;
+};
+
 type EventRow = {
   id: string;
   name: string;
@@ -68,7 +80,7 @@ async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
         "entry_id, competitor_id, person_id, first_name, last_name, course_name, class_name, age_category, total_time_ms, is_dnf, scope_type, scope_value, position, percentile, winner_time_ms, time_back_ms, entrants_in_scope, finishers_in_scope",
       )
       .eq("event_id", eventId)
-      .in("scope_type", ["overall", "class"]) // age can be added back later when you add age UI
+      .in("scope_type", ["overall", "class"])
       .order("course_name", { ascending: true })
       .order("scope_type", { ascending: true })
       .order("position", { ascending: true, nullsFirst: false })
@@ -98,6 +110,20 @@ async function fetchStageTimes(eventId: string): Promise<StageTime[]> {
   return (data ?? []) as StageTime[];
 }
 
+async function fetchSplitTimes(eventId: string): Promise<SplitTime[]> {
+  const supabase = getServiceClient();
+
+  const { data, error } = await supabase
+    .from("event_split_times")
+    .select(
+      "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position",
+    )
+    .eq("event_id", eventId);
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as SplitTime[];
+}
+
 function uniqueSorted(
   rows: StandingsRow[],
   key: "course_name" | "class_name",
@@ -120,6 +146,8 @@ export default async function LeaderboardPage({
   searchParams: Promise<{
     course?: string;
     class?: string;
+    splits?: string;
+    stages?: string;
   }>;
 }) {
   const { eventId } = await params;
@@ -130,22 +158,22 @@ export default async function LeaderboardPage({
 
   let standings: StandingsRow[] = [];
   let stageTimes: StageTime[] = [];
+  let splitTimes: SplitTime[] = [];
   let errorMsg: string | null = null;
 
   try {
     standings = await fetchStandings(eventId);
     stageTimes = await fetchStageTimes(eventId);
+    splitTimes = await fetchSplitTimes(eventId);
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
   }
 
   const courses = uniqueSorted(standings, "course_name");
 
-  // Course is now REQUIRED: pick querystring if valid, otherwise first available.
   const initialCourse =
     sp.course && courses.includes(sp.course) ? sp.course : (courses[0] ?? "");
 
-  // Class options should come from the selected course only.
   const classes = uniqueSorted(
     standings.filter((r) => r.course_name === initialCourse),
     "class_name",
@@ -153,6 +181,11 @@ export default async function LeaderboardPage({
 
   const initialClass =
     sp.class && classes.includes(sp.class) ? sp.class : "";
+
+  const initialShowSplits = sp.splits === "1";
+
+  const initialSelectedStageIds =
+    sp.stages && sp.stages.length > 0 ? sp.stages.split(",").filter(Boolean) : [];
 
   return (
     <main className="p-6 max-w-6xl mx-auto">
@@ -171,10 +204,13 @@ export default async function LeaderboardPage({
         <StandingsTable
           standings={standings}
           stageTimes={stageTimes}
+          splitTimes={splitTimes}
           courses={courses}
           classes={classes}
           initialCourse={initialCourse}
           initialClass={initialClass}
+          initialShowSplits={initialShowSplits}
+          initialSelectedStageIds={initialSelectedStageIds}
           eventId={eventId}
         />
       )}
