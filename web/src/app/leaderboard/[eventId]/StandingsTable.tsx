@@ -207,7 +207,7 @@ export function StandingsTable({
                 <th className="text-right px-3 py-2">Back</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y">
             {filtered.map((row) => (
               <tr key={row.entry_id}>
                 <td>{row.is_dnf ? "—" : row.position ?? ""}</td>
@@ -224,25 +224,31 @@ export function StandingsTable({
                   const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
 
                   return (
-                    <td key={s.stage_id} className="text-right">
-                      <div>
-                        {stage?.time_ms ? formatTime(stage.time_ms) : ""}
+                  <td key={s.stage_id} className="px-3 py-2 text-right align-top">
+                    <div className="leading-tight">
+                      <div>{stage?.time_ms ? formatTime(stage.time_ms) : ""}</div>
+                      <div className="text-xs text-gray-500">
+                        {stage?.stage_position ?? ""}
                       </div>
-                      {stage?.stage_position && (
-                        <div className="text-xs text-gray-500">
-                          {stage.stage_position}
-                        </div>
-                      )}
-                    </td>
+                    </div>
+                  </td>
                   );
                 })}
 
-                <td>{row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}</td>
+                <td className="px-3 py-2 text-right tabular-nums align-top">
+                  <div>
+                    {row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}
+                  </div>
+                  <div className="text-xs text-gray-500">&nbsp;</div>
+                </td>
 
-                <td>
-                  {row.is_dnf || row.time_back_ms == null
-                    ? ""
-                    : `+${formatTime(row.time_back_ms)}`}
+                <td className="px-3 py-2 text-right tabular-nums text-gray-600 align-top">
+                  <div>
+                    {row.is_dnf || row.time_back_ms == null
+                      ? ""
+                      : `+${formatTime(row.time_back_ms)}`}
+                  </div>
+                  <div className="text-xs text-gray-500">&nbsp;</div>
                 </td>
               </tr>
             ))}
