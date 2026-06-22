@@ -53,14 +53,16 @@ async function fetchScopedStandings(
 
   while (true) {
     const { data, error } = await supabase
-      .from("standings_scoped")
-      .select(
-        "entry_id, competitor_id, person_id, first_name, last_name, course_name, class_name, age_category, total_time_ms, is_dnf, scope_type, scope_value, position, percentile, winner_time_ms, time_back_ms, entrants_in_scope",
-      )
-      .eq("event_id", eventId)
-      .eq("scope_type", scope)
-      .range(offset, offset + pageSize - 1);
-
+    .from("standings_scoped")
+    .select(
+      "entry_id, competitor_id, person_id, first_name, last_name, course_name, class_name, age_category, total_time_ms, is_dnf, scope_type, scope_value, position, percentile, winner_time_ms, time_back_ms, entrants_in_scope, finishers_in_scope",
+    )
+    .eq("event_id", eventId)
+    .eq("scope_type", scope)
+    .order("is_dnf", { ascending: true })        // finishers first
+    .order("position", { ascending: true, nullsFirst: false })  // then by rank
+    .order("last_name", { ascending: true })     // tiebreaker
+    .range(offset, offset + pageSize - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
     all.push(...(data as StandingsRow[]));
