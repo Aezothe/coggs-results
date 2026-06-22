@@ -1,5 +1,5 @@
 import { getServiceClient } from "@/lib/supabase/server";
-import Link from "next/link";
+import { PersonStagePerformanceTable } from "./PersonStagePerformanceTable";
 
 type StageRide = {
   stage_id: string;
@@ -40,7 +40,7 @@ function summarizeStages(rides: StageRide[]): StageSummary[] {
   const byStage = new Map<string, { name: string; pcts: number[] }>();
 
   for (const r of rides) {
-    if (r.time_ms == null) continue; // DNF on this stage
+    if (r.time_ms == null) continue;
     if (r.stage_position == null) continue;
     if (r.finishers_on_stage == null) continue;
 
@@ -56,23 +56,14 @@ function summarizeStages(rides: StageRide[]): StageSummary[] {
   const summaries: StageSummary[] = [];
   for (const [stage_id, { name, pcts }] of byStage.entries()) {
     if (pcts.length === 0) continue;
-    const best = Math.max(...pcts);
-    const avg = pcts.reduce((a, b) => a + b, 0) / pcts.length;
     summaries.push({
       stage_id,
       stage_name: name,
-      best_percentile: best,
-      avg_percentile: avg,
+      best_percentile: Math.max(...pcts),
+      avg_percentile: pcts.reduce((a, b) => a + b, 0) / pcts.length,
       rides: pcts.length,
     });
   }
-
-  summaries.sort((a, b) => {
-    if (b.best_percentile !== a.best_percentile) {
-      return b.best_percentile - a.best_percentile;
-    }
-    return b.rides - a.rides;
-  });
 
   return summaries;
 }
@@ -119,41 +110,7 @@ export async function PersonStagePerformance({
       <p className="text-sm text-gray-500 mb-3">
         Stages ranked by best finish percentile across all rides.
       </p>
-      <div className="overflow-x-auto">
-        <table className="min-w-full text-sm">
-          <thead className="bg-gray-100 text-gray-900">
-            <tr>
-              <th className="text-left px-3 py-2">Stage</th>
-              <th className="text-right px-3 py-2">Best</th>
-              <th className="text-right px-3 py-2">Average</th>
-              <th className="text-right px-3 py-2">Rides</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {summaries.map((s) => (
-              <tr key={s.stage_id} className="hover:bg-gray-50">
-                <td className="px-3 py-2">
-                  <Link
-                    href={`/stages/${s.stage_id}`}
-                    className="text-gray-900 hover:underline"
-                  >
-                    {s.stage_name}
-                  </Link>
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums">
-                  {(s.best_percentile * 100).toFixed(1)}%
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                  {(s.avg_percentile * 100).toFixed(1)}%
-                </td>
-                <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                  {s.rides}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <PersonStagePerformanceTable summaries={summaries} />
     </section>
   );
 }
