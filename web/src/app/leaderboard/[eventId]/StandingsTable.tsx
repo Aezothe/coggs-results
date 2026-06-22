@@ -38,22 +38,13 @@ export function StandingsTable({
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
 
-  const stageList = useMemo(() => {
-    const map = new Map<string, { name: string; ordinal: number }>();
-  
-    for (const s of stageTimes) {
-      if (!map.has(s.stage_id)) {
-        map.set(s.stage_id, {
-          name: s.stage_name,
-          ordinal: s.ordinal,
-        });
-      }
-    }
-  
-    return Array.from(map.entries())
-      .map(([stage_id, v]) => ({ stage_id, ...v }))
-      .sort((a, b) => a.ordinal - b.ordinal);
-  }, [stageTimes]);
+  const filtered = useMemo(() => {
+    return standings.filter((r) => {
+      if (course && r.course_name !== course) return false;
+      if (klass && r.class_name !== klass) return false;
+      return true;
+    });
+  }, [standings, course, klass]);
 
   const stageMap = useMemo(() => {
     const map = new Map<string, Map<string, any>>();
@@ -67,6 +58,30 @@ export function StandingsTable({
   
     return map;
   }, [stageTimes]);
+
+  const stageList = useMemo(() => {
+    const map = new Map<string, { name: string; ordinal: number }>();
+  
+    for (const row of filtered) {
+      const stagesForEntry = stageMap.get(row.entry_id);
+      if (!stagesForEntry) continue;
+  
+      for (const [stage_id, stage] of stagesForEntry.entries()) {
+        if (stage.time_ms == null) continue; // ✅ ignore empty stages
+  
+        if (!map.has(stage_id)) {
+          map.set(stage_id, {
+            name: stage.stage_name,
+            ordinal: stage.ordinal,
+          });
+        }
+      }
+    }
+  
+    return Array.from(map.entries())
+      .map(([stage_id, v]) => ({ stage_id, ...v }))
+      .sort((a, b) => a.ordinal - b.ordinal);
+  }, [filtered, stageMap]);
 
   function updateUrl(
     nextScope: ScopeType,
@@ -105,14 +120,6 @@ export function StandingsTable({
     }
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [course, classes, standings]);
-
-  const filtered = useMemo(() => {
-    return standings.filter((r) => {
-      if (course && r.course_name !== course) return false;
-      if (klass && r.class_name !== klass) return false;
-      return true;
-    });
-  }, [standings, course, klass]);
 
   return (
     <div>
@@ -188,11 +195,11 @@ export function StandingsTable({
         <p className="text-gray-500">No results match the current scope and filters.</p>
       ) : (
         <div className="overflow-x-auto">
-          <table className="min-w-full text-sm">
+          <table className="min-w-full text-sm table-auto">
             <thead className="bg-gray-100 text-gray-900 sticky top-0">
               <tr>
                 <th className="text-left px-3 py-2 w-12">Pos</th>
-                <th className="text-left px-3 py-2">Name</th>
+                <th className="text-left px-3 py-2 align-top">Name</th>
                 <th className="text-left px-3 py-2">Course</th>
                 <th className="text-left px-3 py-2">Class</th>
 
