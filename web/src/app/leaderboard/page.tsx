@@ -4,25 +4,26 @@ import { StandingsTable } from "./StandingsTable";
 
 export const dynamic = "force-dynamic";
 
-type ResultsRow = {
-  entry_id: string;
-  event_id: string;
-  first_name: string | null;
-  last_name: string | null;
-  course_name: string | null;
-  class_name: string | null;
-  total_time_ms: number | null;
-  is_dnf: boolean | null;
-};
+export type ScopeType = "overall" | "class" | "age";
 
 export type StandingsRow = {
   entry_id: string;
+  competitor_id: string;
+  person_id: string | null;
   first_name: string | null;
   last_name: string | null;
   course_name: string | null;
   class_name: string | null;
+  age_category: string | null;
   total_time_ms: number | null;
-  is_dnf: boolean | null;
+  is_dnf: boolean;
+  scope_type: ScopeType;
+  scope_value: string | null;
+  position: number | null;
+  percentile: number | null;
+  winner_time_ms: number | null;
+  time_back_ms: number | null;
+  entrants_in_scope: number | null;
 };
 
 type EventOption = {
@@ -41,62 +42,39 @@ async function fetchEvents(): Promise<EventOption[]> {
   return (data ?? []) as EventOption[];
 }
 
-async function fetchAllResults(eventId: string): Promise<ResultsRow[]> {
+async function fetchScopedStandings(
+  eventId: string,
+  scope: ScopeType,
+): Promise<StandingsRow[]> {
   const supabase = getServiceClient();
   const pageSize = 1000;
-  const all: ResultsRow[] = [];
+  const all: StandingsRow[] = [];
   let offset = 0;
 
   while (true) {
     const { data, error } = await supabase
-      .from("results")
+      .from("standings_scoped")
       .select(
-        "entry_id, event_id, first_name, last_name, course_name, class_name, total_time_ms, is_dnf",
+        "entry_id, competitor_id, person_id, first_name, last_name, course_name, class_name, age_category, total_time_ms, is_dnf, scope_type, scope_value, position, percentile, winner_time_ms, time_back_ms, entrants_in_scope",
       )
       .eq("event_id", eventId)
+      .eq("scope_type", scope)
       .range(offset, offset + pageSize - 1);
 
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-    all.push(...(data as ResultsRow[]));
+    all.push(...(data as StandingsRow[]));
     if (data.length < pageSize) break;
     offset += pageSize;
   }
+
   return all;
 }
 
-function buildStandings(rows: ResultsRow[]): StandingsRow[] {
-  const byEntry = new Map<string, StandingsRow>();
-  for (const r of rows) {
-    if (!r.entry_id) continue;
-    if (!byEntry.has(r.entry_id)) {
-      byEntry.set(r.entry_id, {
-        entry_id: r.entry_id,
-        first_name: r.first_name,
-        last_name: r.last_name,
-        course_name: r.course_name,
-        class_name: r.class_name,
-        total_time_ms: r.total_time_ms,
-        is_dnf: r.is_dnf,
-      });
-    }
-  }
-  return Array.from(byEntry.values()).sort((a, b) => {
-    const ad = !!a.is_dnf;
-    const bd = !!b.is_dnf;
-    if (ad !== bd) return ad ? 1 : -1;
-    const at = a.total_time_ms ?? Number.MAX_SAFE_INTEGER;
-    const bt = b.total_time_ms ?? Number.MAX_SAFE_INTEGER;
-    if (at !== bt) return at - bt;
-    const al = (a.last_name ?? "").localeCompare(b.last_name ?? "");
-    if (al !== 0) return al;
-    return (a.first_name ?? "").localeCompare(b.first_name ?? "");
-  });
+function isScope(v: string | undefined): v is ScopeType {
+  return v === "overall" || v === "class" || v === "age";
 }
 
-/**
- * Get sorted unique non-empty values for a string field.
- */
 function uniqueSorted(
   rows: StandingsRow[],
   key: "course_name" | "class_name",
@@ -114,6 +92,7 @@ export default async function LeaderboardPage({
 }: {
   searchParams: Promise<{
     event?: string;
+    scope?: string;
     course?: string;
     class?: string;
   }>;
@@ -130,16 +109,19 @@ export default async function LeaderboardPage({
     );
   }
 
-  const selectedId =
+  const selectedEventId =
     params.event && events.some((e) => e.id === params.event)
       ? params.event
       : events[0].id;
 
+  const selectedScope: ScopeType = isScope(params.scope)
+    ? params.scope
+    : "class";
+
   let standings: StandingsRow[] = [];
   let errorMsg: string | null = null;
   try {
-    const rows = await fetchAllResults(selectedId);
-    standings = buildStandings(rows);
+    standings = await fetchScopedStandings(selectedEventId, selectedScope);
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
   }
@@ -151,7 +133,7 @@ export default async function LeaderboardPage({
     <main className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-semibold mb-4">Leaderboard</h1>
 
-      <EventPicker events={events} selectedId={selectedId} />
+      <EventPicker events={events} selectedId={selectedEventId} />
 
       {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
 
@@ -162,7 +144,8 @@ export default async function LeaderboardPage({
           classes={classes}
           initialCourse={params.course ?? ""}
           initialClass={params.class ?? ""}
-          eventId={selectedId}
+          initialScope={selectedScope}
+          eventId={selectedEventId}
         />
       )}
     </main>
