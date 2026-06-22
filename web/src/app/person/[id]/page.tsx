@@ -4,6 +4,7 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { PersonResultsTable } from "./PersonResultsTable";
 import { PercentileChart } from "./PercentileChart";
 import { PersonStagePerformance } from "./PersonStagePerformance";
+import { PersonRiderProfile } from "./PersonRiderProfile";
 
 export const dynamic = "force-dynamic";
 
@@ -108,6 +109,7 @@ export default async function PersonPage({
     <main className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-semibold mb-1">{displayName}</h1>
       <p className="text-sm text-gray-500 mb-6"></p>
+        <PersonRiderProfile personId={id} />
         {results.length > 0 && (
             <>
                 <PercentileChart results={results} />
