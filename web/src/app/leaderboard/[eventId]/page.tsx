@@ -102,7 +102,7 @@ function uniqueSorted(
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
-async function fetchStageTimes(eventId: string) {
+async function fetchStageTimes(eventId: string): Promise<StageTime[]> {
     const supabase = getServiceClient();
   
     const { data, error } = await supabase
@@ -112,7 +112,7 @@ async function fetchStageTimes(eventId: string) {
   
     if (error) throw new Error(error.message);
   
-    return data ?? [];
+    return (data ?? []) as StageTime[];
   }
 
 export default async function LeaderboardPage({

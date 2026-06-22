@@ -3,22 +3,14 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/format";
-import type { StandingsRow, ScopeType } from "./page";
+import type { StandingsRow, ScopeType, StageTime } from "./page";
+
 
 const SCOPES: { value: ScopeType; label: string }[] = [
   { value: "overall", label: "Overall" },
   { value: "class", label: "Class" },
   { value: "age", label: "Age" },
 ];
-
-type StageTime = {
-  entry_id: string;
-  stage_id: string;
-  stage_name: string;
-  ordinal: number;
-  time_ms: number | null;
-  stage_position: number | null;
-};
 
 export function StandingsTable({
   standings,
@@ -31,7 +23,7 @@ export function StandingsTable({
   eventId,
 }: {
   standings: StandingsRow[];
-  stageTimes: any[];
+  stageTimes: StageTime[];
   courses: string[];
   classes: string[];
   initialCourse: string;
@@ -239,7 +231,7 @@ export function StandingsTable({
                     {row.is_dnf || row.time_back_ms == null
                       ? ""
                       : `+${formatTime(row.time_back_ms)}`}
-                      
+
                   {stageList.map((s) => {
                   const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
 
