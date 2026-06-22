@@ -353,7 +353,7 @@ export default async function StagePage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href="/stages" className="text-blue-600 hover:underline">
+        <Link href="/stages" className="text-gray-100 hover:underline">
           ← All stages
         </Link>
       </nav>
@@ -386,30 +386,30 @@ export default async function StagePage({
               </thead>
               <tbody className="divide-y">
                 {performers.map((p, i) => (
-                  <tr key={p.identityKey}>
-                    <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                    <td className="px-3 py-2">
-                      {p.personId ? (
-                        <Link
-                          href={`/person/${p.personId}`}
-                          className="text-blue-600 hover:underline"
-                        >
-                          {p.displayName}
-                        </Link>
-                      ) : (
-                        p.displayName
-                      )}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {(p.best * 100).toFixed(1)}%
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                      {(p.avg * 100).toFixed(1)}%
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                      {p.rides}
-                    </td>
-                  </tr>
+                    <tr key={p.identityKey} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+                        <td className="px-3 py-2">
+                            {p.personId ? (
+                            <Link
+                                href={`/person/${p.personId}`}
+                                className="text-gray-900 hover:underline"
+                            >
+                                {p.displayName}
+                            </Link>
+                            ) : (
+                            p.displayName
+                            )}
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums">
+                            {(p.best * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+                            {(p.avg * 100).toFixed(1)}%
+                        </td>
+                        <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+                            {p.rides}
+                        </td>
+                        </tr>
                 ))}
               </tbody>
             </table>
@@ -432,25 +432,19 @@ export default async function StagePage({
               </thead>
               <tbody className="divide-y">
                 {events.map((ev) => (
-                  <tr key={ev.event_id}>
-                    <td className="px-3 py-2 text-gray-600">
-                      {ev.event_date ?? ""}
-                    </td>
-                    <td className="px-3 py-2">
-                      <Link
-                        href={`/leaderboard/${ev.event_id}`}
-                        className="text-blue-600 hover:underline"
-                      >
-                        {ev.event_name}
-                      </Link>
-                    </td>
-                    <td className="px-3 py-2 text-gray-600">
-                      {ev.courses.join(", ")}
-                    </td>
-                    <td className="px-3 py-2 text-right tabular-nums">
-                      {ev.riders}
-                    </td>
-                  </tr>
+                    <tr key={ev.event_id} className="hover:bg-gray-50">
+                        <td className="px-3 py-2 text-gray-600">{ev.event_date ?? ""}</td>
+                        <td className="px-3 py-2">
+                            <Link
+                            href={`/leaderboard/${ev.event_id}`}
+                            className="text-gray-900 hover:underline"
+                            >
+                            {ev.event_name}
+                            </Link>
+                        </td>
+                        <td className="px-3 py-2 text-gray-600">{ev.courses.join(", ")}</td>
+                        <td className="px-3 py-2 text-right tabular-nums">{ev.riders}</td>
+                        </tr>
                 ))}
               </tbody>
             </table>
