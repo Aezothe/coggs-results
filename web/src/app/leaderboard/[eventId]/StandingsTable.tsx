@@ -208,45 +208,44 @@ export function StandingsTable({
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row) => (
-                <tr
-                  key={row.entry_id}
-                  className="border-t border-gray-200 hover:bg-gray-50"
-                >
-                  <td className="px-3 py-2 text-gray-500">
-                    {row.is_dnf ? "—" : row.position ?? ""}
-                  </td>
-                  <td className="px-3 py-2">
-                    {row.first_name} {row.last_name}
-                  </td>
-                  <td className="px-3 py-2">{row.course_name ?? ""}</td>
-                  <td className="px-3 py-2">{row.class_name ?? ""}</td>
-                  {scope === "age" && (
-                    <td className="px-3 py-2">{row.age_category ?? ""}</td>
-                  )}
-                  <td className="px-3 py-2 text-right tabular-nums">
-                    {row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}
-                  </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                    {row.is_dnf || row.time_back_ms == null
-                      ? ""
-                      : `+${formatTime(row.time_back_ms)}`}
+            {filtered.map((row) => (
+              <tr key={row.entry_id}>
+                <td>{row.is_dnf ? "—" : row.position ?? ""}</td>
 
-                  {stageList.map((s) => {
+                <td>
+                  {row.first_name} {row.last_name}
+                </td>
+
+                <td>{row.course_name ?? ""}</td>
+                <td>{row.class_name ?? ""}</td>
+
+                {/* ✅ STAGE COLUMNS (each its own td) */}
+                {stageList.map((s) => {
                   const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
 
                   return (
-                    <td key={s.stage_id}>
-                      {stage?.time_ms ? formatTime(stage.time_ms) : ""}
+                    <td key={s.stage_id} className="text-right">
+                      <div>
+                        {stage?.time_ms ? formatTime(stage.time_ms) : ""}
+                      </div>
                       {stage?.stage_position && (
-                        <div>{stage.stage_position}</div>
+                        <div className="text-xs text-gray-500">
+                          {stage.stage_position}
+                        </div>
                       )}
                     </td>
                   );
                 })}
-                  </td>
-                </tr>
-              ))}
+
+                <td>{row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}</td>
+
+                <td>
+                  {row.is_dnf || row.time_back_ms == null
+                    ? ""
+                    : `+${formatTime(row.time_back_ms)}`}
+                </td>
+              </tr>
+            ))}
             </tbody>
           </table>
         </div>
