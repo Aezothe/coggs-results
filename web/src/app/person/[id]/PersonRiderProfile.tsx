@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase/server";
+import { TagPill } from "@/components/TagPill";
 
 type StageRide = {
   stage_id: string;
@@ -159,10 +160,8 @@ export async function PersonRiderProfile({
             {top5.map((t) => (
               <tr key={t.tag_id} className="hover:bg-gray-50">
                 <td className="px-3 py-2">
-                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700">
-                    {t.tag_name}
-                  </span>
-                </td>
+                    <TagPill id={t.tag_id} name={t.tag_name} />
+                    </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {(t.avg_percentile * 100).toFixed(1)}%
                 </td>

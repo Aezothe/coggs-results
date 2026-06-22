@@ -23,7 +23,7 @@ export function TagPill({
       className={`${base} ${colors}`}
       title={category}
     >
-      {name}
+      🎯{name}
     </Link>
   );
 }
