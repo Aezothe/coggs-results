@@ -1,9 +1,10 @@
 "use client";
 
-import Link from "next/link";
 import { useCallback } from "react";
+import Link from "next/link";
 import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
+import { TagPill } from "@/components/TagPill";
 import type { StageSummary } from "./PersonStagePerformance";
 
 type SortKey = "stage_name" | "best_percentile" | "avg_percentile" | "rides";
@@ -80,12 +81,7 @@ export function PersonStagePerformanceTable({
                 {s.tags.length > 0 && (
                   <div className="flex flex-wrap gap-1 mt-1">
                     {s.tags.map((t) => (
-                      <span
-                        key={t.id}
-                        className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700"
-                      >
-                        {t.name}
-                      </span>
+                      <TagPill key={t.id} id={t.id} name={t.name} />
                     ))}
                   </div>
                 )}
