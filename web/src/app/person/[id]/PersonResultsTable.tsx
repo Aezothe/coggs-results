@@ -14,6 +14,7 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
             <th className="text-left px-3 py-2">Event</th>
             <th className="text-left px-3 py-2">Course</th>
             <th className="text-left px-3 py-2">Class</th>
+            <th className="text-left px-3 py-2">Position</th>
             <th className="text-right px-3 py-2">Time</th>
             <th className="text-right px-3 py-2">Percentile</th>
           </tr>
