@@ -40,9 +40,10 @@ export function StandingsTable({
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
   const [showSplits, setShowSplits] = useState(initialShowSplits);
-  const [selectedStageIds, setSelectedStageIds] = useState<string[]>(
-    initialSelectedStageIds,
+  const [selectedStageIds, setSelectedStageIds] = useState<string[] | null>(
+    initialSelectedStageIds.length > 0 ? initialSelectedStageIds : null,
   );
+  
 
   function updateUrl(opts: {
     nextCourse?: string;
@@ -53,7 +54,9 @@ export function StandingsTable({
     const nextCourse = opts.nextCourse ?? course;
     const nextClass = opts.nextClass ?? klass;
     const nextShowSplits = opts.nextShowSplits ?? showSplits;
-    const nextStageIds = opts.nextStageIds ?? selectedStageIds;
+    const nextStageIds =
+    opts.nextStageIds ??
+    (selectedStageIds === null ? [] : selectedStageIds);
 
     const sp = new URLSearchParams();
     if (nextCourse) sp.set("course", nextCourse);
@@ -73,8 +76,12 @@ export function StandingsTable({
   function onCourseChange(v: string) {
     setCourse(v);
     setKlass("");
-    setSelectedStageIds([]); // course change = different stage set
-    updateUrl({ nextCourse: v, nextClass: "", nextStageIds: [] });
+    setSelectedStageIds(null); // "all" on the new course
+    updateUrl({
+      nextCourse: v,
+      nextClass: "",
+      nextStageIds: [], // empty in URL = "all"
+    });
   }
 
   function onClassChange(v: string) {
@@ -89,16 +96,26 @@ export function StandingsTable({
   }
 
   function onToggleStage(stageId: string) {
+    // If "all" is active, start from the full stageList minus the one being toggled
+    if (selectedStageIds === null) {
+      const next = stageList
+        .map((s) => s.stage_id)
+        .filter((id) => id !== stageId);
+      setSelectedStageIds(next);
+      updateUrl({ nextStageIds: next });
+      return;
+    }
+  
     const next = selectedStageIds.includes(stageId)
       ? selectedStageIds.filter((id) => id !== stageId)
       : [...selectedStageIds, stageId];
     setSelectedStageIds(next);
     updateUrl({ nextStageIds: next });
   }
-
+  
   function onSelectAllStages() {
-    setSelectedStageIds([]);
-    updateUrl({ nextStageIds: [] });
+    setSelectedStageIds(null);
+    updateUrl({ nextStageIds: [] }); // empty in URL = "all"
   }
 
   const displayScope = klass ? "class" : "overall";
@@ -212,7 +229,7 @@ export function StandingsTable({
 
   // After stage filter
   const visibleStages = useMemo(() => {
-    if (selectedStageIds.length === 0) return stageList;
+    if (selectedStageIds === null) return stageList;
     const set = new Set(selectedStageIds);
     return stageList.filter((s) => set.has(s.stage_id));
   }, [stageList, selectedStageIds]);
@@ -273,8 +290,7 @@ export function StandingsTable({
           <span className="text-gray-600">Stages:</span>
           {stageList.map((s) => {
             const checked =
-              selectedStageIds.length === 0 ||
-              selectedStageIds.includes(s.stage_id);
+              selectedStageIds === null || selectedStageIds.includes(s.stage_id);
             return (
               <label
                 key={s.stage_id}
@@ -289,7 +305,7 @@ export function StandingsTable({
               </label>
             );
           })}
-          {selectedStageIds.length > 0 && (
+          {selectedStageIds !== null && (
             <button
               onClick={onSelectAllStages}
               className="text-blue-600 hover:underline"
@@ -335,7 +351,7 @@ export function StandingsTable({
                       {splits.map((sp) => (
                         <th
                           key={`split-${sp.split_segment_id}`}
-                          className="text-right px-3 py-2 min-w-[75px] bg-gray-50"
+                          className="text-right px-3 py-2 min-w-[75px]"
                         >
                           <div className="text-xs font-normal text-gray-600">
                             {sp.split_name}
