@@ -60,15 +60,17 @@ export default async function StagesPage() {
       {used.length > 0 && (
         <ul className="divide-y divide-gray-200">
           {used.map((s) => (
-            <li
-              key={s.id}
-              className="py-2 flex justify-between items-center"
-            >
-              <span className="text-gray-900">{s.name}</span>
-              <span className="text-sm text-gray-500 tabular-nums">
-                {s.event_appearances} event
-                {s.event_appearances === 1 ? "" : "s"}
-              </span>
+            <li key={s.id}>
+              <Link
+                href={`/stages/${s.id}`}
+                className="py-2 flex justify-between items-center hover:bg-gray-50 px-2 -mx-2 rounded"
+              >
+                <span className="text-gray-900">{s.name}</span>
+                <span className="text-sm text-gray-500 tabular-nums">
+                  {s.event_appearances} event
+                  {s.event_appearances === 1 ? "" : "s"}
+                </span>
+              </Link>
             </li>
           ))}
         </ul>
