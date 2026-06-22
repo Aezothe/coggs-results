@@ -18,14 +18,6 @@ export default function HomePage() {
             Search COGGS timed events
           </p>
         </Link>
-        <Link href="/leaderboard"
-          className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
-        >
-          <h2 className="text-lg font-medium mb-1">Leaderboard →</h2>
-          <p className="text-sm text-gray-600">
-            Standings for any event, filtered by course or class.
-          </p>
-        </Link>
         <Link href="/people"
           className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
         >

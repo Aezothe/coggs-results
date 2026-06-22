@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { PersonResultsTable } from "./PersonResultsTable";
 import { PercentileChart } from "./PercentileChart";
+import { PersonStagePerformance } from "./PersonStagePerformance.tsx";
 
 export const dynamic = "force-dynamic";
 
@@ -113,6 +114,8 @@ export default async function PersonPage({
                 <PersonResultsTable results={results} />
             </>
             )}
+
+            <PersonStagePerformance personId={id} />
 
       {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
 
