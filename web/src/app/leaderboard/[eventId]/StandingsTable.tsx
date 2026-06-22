@@ -11,8 +11,18 @@ const SCOPES: { value: ScopeType; label: string }[] = [
   { value: "age", label: "Age" },
 ];
 
+type StageTime = {
+  entry_id: string;
+  stage_id: string;
+  stage_name: string;
+  ordinal: number;
+  time_ms: number | null;
+  stage_position: number | null;
+};
+
 export function StandingsTable({
   standings,
+  stageTimes,
   courses,
   classes,
   initialCourse,
@@ -21,6 +31,7 @@ export function StandingsTable({
   eventId,
 }: {
   standings: StandingsRow[];
+  stageTimes: any[];
   courses: string[];
   classes: string[];
   initialCourse: string;
@@ -34,6 +45,36 @@ export function StandingsTable({
   const [scope, setScope] = useState<ScopeType>(initialScope);
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
+
+  const stageList = useMemo(() => {
+    const map = new Map<string, { name: string; ordinal: number }>();
+  
+    for (const s of stageTimes) {
+      if (!map.has(s.stage_id)) {
+        map.set(s.stage_id, {
+          name: s.stage_name,
+          ordinal: s.ordinal,
+        });
+      }
+    }
+  
+    return Array.from(map.entries())
+      .map(([stage_id, v]) => ({ stage_id, ...v }))
+      .sort((a, b) => a.ordinal - b.ordinal);
+  }, [stageTimes]);
+
+  const stageMap = useMemo(() => {
+    const map = new Map<string, Map<string, any>>();
+  
+    for (const row of stageTimes) {
+      if (!map.has(row.entry_id)) {
+        map.set(row.entry_id, new Map());
+      }
+      map.get(row.entry_id)!.set(row.stage_id, row);
+    }
+  
+    return map;
+  }, [stageTimes]);
 
   function updateUrl(
     nextScope: ScopeType,
@@ -162,6 +203,11 @@ export function StandingsTable({
                 <th className="text-left px-3 py-2">Name</th>
                 <th className="text-left px-3 py-2">Course</th>
                 <th className="text-left px-3 py-2">Class</th>
+
+                {stageList.map((s) => (
+                <th key={s.stage_id}>{s.name}</th>
+                ))}
+
                 {scope === "age" && (
                   <th className="text-left px-3 py-2">Age Group</th>
                 )}
@@ -193,6 +239,19 @@ export function StandingsTable({
                     {row.is_dnf || row.time_back_ms == null
                       ? ""
                       : `+${formatTime(row.time_back_ms)}`}
+                      
+                  {stageList.map((s) => {
+                  const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
+
+                  return (
+                    <td key={s.stage_id}>
+                      {stage?.time_ms ? formatTime(stage.time_ms) : ""}
+                      {stage?.stage_position && (
+                        <div>{stage.stage_position}</div>
+                      )}
+                    </td>
+                  );
+                })}
                   </td>
                 </tr>
               ))}

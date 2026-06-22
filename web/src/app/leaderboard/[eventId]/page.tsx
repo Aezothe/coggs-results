@@ -28,6 +28,16 @@ export type StandingsRow = {
   finishers_in_scope: number | null;
 };
 
+export type StageTime = {
+    entry_id: string;
+    stage_id: string;
+    stage_name: string;
+    ordinal: number;
+    time_ms: number | null;
+    stage_position: number | null;
+  };
+  
+
 type EventRow = {
   id: string;
   name: string;
@@ -92,9 +102,23 @@ function uniqueSorted(
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
+async function fetchStageTimes(eventId: string) {
+    const supabase = getServiceClient();
+  
+    const { data, error } = await supabase
+      .from("event_stage_times")
+      .select("entry_id, stage_id, stage_name, ordinal, time_ms, stage_position")
+      .eq("event_id", eventId);
+  
+    if (error) throw new Error(error.message);
+  
+    return data ?? [];
+  }
+
 export default async function LeaderboardPage({
   params,
   searchParams,
+  
 }: {
   params: Promise<{ eventId: string }>;
   searchParams: Promise<{
@@ -112,7 +136,16 @@ export default async function LeaderboardPage({
   const selectedScope: ScopeType = isScope(sp.scope) ? sp.scope : "class";
 
   let standings: StandingsRow[] = [];
+  let stageTimes: StageTime[] = [];
   let errorMsg: string | null = null;
+  
+  try {
+    standings = await fetchScopedStandings(eventId, selectedScope);
+    stageTimes = await fetchStageTimes(eventId);   // ✅ ADD THIS LINE
+  } catch (e) {
+    errorMsg = e instanceof Error ? e.message : String(e);
+  }
+  ``
   try {
     standings = await fetchScopedStandings(eventId, selectedScope);
   } catch (e) {
@@ -140,6 +173,7 @@ export default async function LeaderboardPage({
       {!errorMsg && (
         <StandingsTable
           standings={standings}
+          stageTimes={stageTimes}
           courses={courses}
           classes={classes}
           initialCourse={sp.course ?? ""}
