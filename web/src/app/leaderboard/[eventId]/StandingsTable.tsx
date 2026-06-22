@@ -1,16 +1,32 @@
 "use client";
+import React from "react";
 
-import { useMemo, useState, useTransition } from "react";
+import Link from "next/link";
+import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/format";
+import { useSortedTable } from "@/lib/useSortedTable";
+import { SortableHeader } from "@/components/SortableHeader";
 import type { StandingsRow, StageTime, SplitTime } from "./page";
-import Link from "next/link";
 
 type SplitDef = {
   split_segment_id: string;
   split_name: string;
   split_ordinal: number;
 };
+
+// Fixed-column sort keys are literal strings.
+// Stage and split columns use string keys with prefixes so the
+// getValue function can dispatch on them dynamically.
+type SortKey =
+  | "position"
+  | "name"
+  | "course_name"
+  | "class_name"
+  | "total_time_ms"
+  | "time_back_ms"
+  | `stage:${string}`
+  | `split:${string}`;
 
 export function StandingsTable({
   standings,
@@ -44,7 +60,6 @@ export function StandingsTable({
   const [selectedStageIds, setSelectedStageIds] = useState<string[] | null>(
     initialSelectedStageIds.length > 0 ? initialSelectedStageIds : null,
   );
-  
 
   function updateUrl(opts: {
     nextCourse?: string;
@@ -56,8 +71,7 @@ export function StandingsTable({
     const nextClass = opts.nextClass ?? klass;
     const nextShowSplits = opts.nextShowSplits ?? showSplits;
     const nextStageIds =
-    opts.nextStageIds ??
-    (selectedStageIds === null ? [] : selectedStageIds);
+      opts.nextStageIds ?? (selectedStageIds === null ? [] : selectedStageIds);
 
     const sp = new URLSearchParams();
     if (nextCourse) sp.set("course", nextCourse);
@@ -77,12 +91,8 @@ export function StandingsTable({
   function onCourseChange(v: string) {
     setCourse(v);
     setKlass("");
-    setSelectedStageIds(null); // "all" on the new course
-    updateUrl({
-      nextCourse: v,
-      nextClass: "",
-      nextStageIds: [], // empty in URL = "all"
-    });
+    setSelectedStageIds(null);
+    updateUrl({ nextCourse: v, nextClass: "", nextStageIds: [] });
   }
 
   function onClassChange(v: string) {
@@ -97,7 +107,6 @@ export function StandingsTable({
   }
 
   function onToggleStage(stageId: string) {
-    // If "all" is active, start from the full stageList minus the one being toggled
     if (selectedStageIds === null) {
       const next = stageList
         .map((s) => s.stage_id)
@@ -106,17 +115,16 @@ export function StandingsTable({
       updateUrl({ nextStageIds: next });
       return;
     }
-  
     const next = selectedStageIds.includes(stageId)
       ? selectedStageIds.filter((id) => id !== stageId)
       : [...selectedStageIds, stageId];
     setSelectedStageIds(next);
     updateUrl({ nextStageIds: next });
   }
-  
+
   function onSelectAllStages() {
     setSelectedStageIds(null);
-    updateUrl({ nextStageIds: [] }); // empty in URL = "all"
+    updateUrl({ nextStageIds: [] });
   }
 
   const displayScope = klass ? "class" : "overall";
@@ -131,26 +139,13 @@ export function StandingsTable({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [course, standings]);
 
+  // Filter (no sort yet — sort happens in useSortedTable below)
   const filtered = useMemo(() => {
-    const rows = standings.filter((r) => {
+    return standings.filter((r) => {
       if (r.course_name !== course) return false;
       if (r.scope_type !== displayScope) return false;
       if (klass && r.class_name !== klass) return false;
       return true;
-    });
-
-    return [...rows].sort((a, b) => {
-      const ad = !!a.is_dnf;
-      const bd = !!b.is_dnf;
-      if (ad !== bd) return ad ? 1 : -1;
-
-      const ap = a.position ?? Number.MAX_SAFE_INTEGER;
-      const bp = b.position ?? Number.MAX_SAFE_INTEGER;
-      if (ap !== bp) return ap - bp;
-
-      const al = (a.last_name ?? "").localeCompare(b.last_name ?? "");
-      if (al !== 0) return al;
-      return (a.first_name ?? "").localeCompare(b.first_name ?? "");
     });
   }, [standings, course, displayScope, klass]);
 
@@ -174,7 +169,7 @@ export function StandingsTable({
     return map;
   }, [splitTimes]);
 
-  // canonical stage_id -> splits (in ordinal order)
+  // canonical stage_id -> splits (ordered)
   const splitsByStageId = useMemo(() => {
     const map = new Map<string, Map<string, SplitDef>>();
     for (const row of splitTimes) {
@@ -190,7 +185,6 @@ export function StandingsTable({
         });
       }
     }
-
     const out = new Map<string, SplitDef[]>();
     for (const [stageId, inner] of map.entries()) {
       out.set(
@@ -203,17 +197,13 @@ export function StandingsTable({
     return out;
   }, [splitTimes]);
 
-  // All stages that have data for currently-filtered riders
   const stageList = useMemo(() => {
     const map = new Map<string, { name: string; ordinal: number }>();
-
     for (const row of filtered) {
       const stagesForEntry = stageMap.get(row.entry_id);
       if (!stagesForEntry) continue;
-
       for (const [stage_id, stage] of stagesForEntry.entries()) {
         if (stage.time_ms == null) continue;
-
         if (!map.has(stage_id)) {
           map.set(stage_id, {
             name: stage.stage_name,
@@ -222,22 +212,59 @@ export function StandingsTable({
         }
       }
     }
-
     return Array.from(map.entries())
       .map(([stage_id, v]) => ({ stage_id, ...v }))
       .sort((a, b) => a.ordinal - b.ordinal);
   }, [filtered, stageMap]);
 
-  // After stage filter
   const visibleStages = useMemo(() => {
     if (selectedStageIds === null) return stageList;
     const set = new Set(selectedStageIds);
     return stageList.filter((s) => set.has(s.stage_id));
   }, [stageList, selectedStageIds]);
 
+  // The sort comparator. Returns string or number or null per row+key.
+  const getValue = useCallback(
+    (row: StandingsRow, key: SortKey): string | number | null => {
+      if (key === "position") {
+        return row.is_dnf ? null : (row.position ?? null);
+      }
+      if (key === "name") {
+        return `${row.last_name ?? ""} ${row.first_name ?? ""}`
+          .trim()
+          .toLowerCase();
+      }
+      if (key === "course_name") return row.course_name ?? null;
+      if (key === "class_name") return row.class_name ?? null;
+      if (key === "total_time_ms") {
+        return row.is_dnf ? null : (row.total_time_ms ?? null);
+      }
+      if (key === "time_back_ms") {
+        return row.is_dnf ? null : (row.time_back_ms ?? null);
+      }
+      if (key.startsWith("stage:")) {
+        const stageId = key.slice("stage:".length);
+        const t = stageMap.get(row.entry_id)?.get(stageId)?.time_ms;
+        return t ?? null;
+      }
+      if (key.startsWith("split:")) {
+        const splitId = key.slice("split:".length);
+        const t = splitMap.get(row.entry_id)?.get(splitId)?.time_ms;
+        return t ?? null;
+      }
+      return null;
+    },
+    [stageMap, splitMap],
+  );
+
+  const { sorted, sort, onSort } = useSortedTable<StandingsRow, SortKey>(
+    filtered,
+    getValue,
+    { key: "position", dir: "asc" },
+  );
+
   return (
     <div>
-      {/* Top filter row */}
       <div className="flex flex-wrap gap-3 mb-3 items-center">
         <label className="flex items-center gap-2 text-sm">
           <span className="text-gray-600">Course:</span>
@@ -280,12 +307,11 @@ export function StandingsTable({
         </label>
 
         <span className="ml-auto text-sm text-gray-500 self-center">
-          {filtered.length} of{" "}
+          {sorted.length} of{" "}
           {standings.filter((r) => r.course_name === course).length}
         </span>
       </div>
 
-      {/* Stage filter row */}
       {stageList.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-sm">
           <span className="text-gray-600">Stages:</span>
@@ -317,80 +343,127 @@ export function StandingsTable({
         </div>
       )}
 
-      {filtered.length === 0 ? (
+      {sorted.length === 0 ? (
         <p className="text-gray-500">
           No results match the current course and class selection.
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm table-auto">
-            <thead className="bg-gray-100 text-gray-900 sticky top-0">
+            <thead className="bg-gray-100 sticky top-0">
               <tr>
-                <th className="text-left px-3 py-2 w-12">Pos</th>
-                <th className="text-left px-3 py-2">Name</th>
-                <th className="text-left px-3 py-2">Course</th>
-                <th className="text-left px-3 py-2">Class</th>
+                <SortableHeader<SortKey>
+                  label="Pos"
+                  sortKey="position"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                  className="w-12"
+                />
+                <SortableHeader<SortKey>
+                  label="Name"
+                  sortKey="name"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
+                <SortableHeader<SortKey>
+                  label="Course"
+                  sortKey="course_name"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
+                <SortableHeader<SortKey>
+                  label="Class"
+                  sortKey="class_name"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
 
                 {visibleStages.map((s) => {
                   const splits = showSplits
                     ? (splitsByStageId.get(s.stage_id) ?? [])
                     : [];
-
                   return (
-                    <>
-                      <th
-                        key={`stage-${s.stage_id}`}
-                        className="text-right px-4 py-2 min-w-[90px] border-l border-gray-200"
-                      >
-                        <div>{s.name}</div>
-                        {splits.length > 0 && (
-                          <div className="text-xs font-normal text-gray-500">
-                            stage
-                          </div>
-                        )}
-                      </th>
+                    <React.Fragment key={`stage-group-${s.stage_id}`}>
+                      <SortableHeader<SortKey>
+                        label={
+                          <span>
+                            {s.name}
+                            {splits.length > 0 && (
+                              <span className="block text-xs font-normal text-gray-500">
+                                stage
+                              </span>
+                            )}
+                          </span>
+                        }
+                        sortKey={`stage:${s.stage_id}`}
+                        currentKey={sort.key}
+                        currentDir={sort.dir}
+                        onSort={onSort}
+                        align="right"
+                        className="min-w-[90px] border-l border-gray-200"
+                      />
                       {splits.map((sp) => (
-                        <th
+                        <SortableHeader<SortKey>
                           key={`split-${sp.split_segment_id}`}
-                          className="text-right px-3 py-2 min-w-[75px]"
-                        >
-                          <div className="text-xs font-normal text-gray-600">
-                            {sp.split_name}
-                          </div>
-                        </th>
+                          label={
+                            <span className="text-xs font-normal text-gray-600">
+                              {sp.split_name}
+                            </span>
+                          }
+                          sortKey={`split:${sp.split_segment_id}`}
+                          currentKey={sort.key}
+                          currentDir={sort.dir}
+                          onSort={onSort}
+                          align="right"
+                          className="min-w-[75px]"
+                        />
                       ))}
-                    </>
+                    </React.Fragment>
                   );
                 })}
 
-                <th className="text-right px-4 py-2 min-w-[90px] border-l border-gray-200">
-                  Total
-                </th>
-                <th className="text-right px-4 py-2 min-w-[90px]">Back</th>
+                <SortableHeader<SortKey>
+                  label="Total"
+                  sortKey="total_time_ms"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                  align="right"
+                  className="min-w-[90px] border-l border-gray-200"
+                />
+                <SortableHeader<SortKey>
+                  label="Back"
+                  sortKey="time_back_ms"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                  align="right"
+                  className="min-w-[90px]"
+                />
               </tr>
             </thead>
 
             <tbody className="divide-y">
-            {filtered.map((row) => (
-              <tr key={row.entry_id} className="hover:bg-gray-50">
-                <td className="px-3 py-2 align-top">
-                  {row.is_dnf ? "—" : (row.position ?? "")}
-                </td>
-                <td className="px-3 py-2 align-top">
-                  {row.person_id ? (
-                    <Link
-                      href={`/person/${row.person_id}`}
-                      className="text-gray-900 hover:underline"
-                    >
-                      {row.first_name} {row.last_name}
-                    </Link>
-                  ) : (
-                    <>
-                      {row.first_name} {row.last_name}
-                    </>
-                  )}
-                </td>
-
+              {sorted.map((row) => (
+                <tr key={row.entry_id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2 align-top">
+                    {row.is_dnf ? "—" : (row.position ?? "")}
+                  </td>
+                  <td className="px-3 py-2 align-top">
+                    {row.person_id ? (
+                      <Link href={`/person/${row.person_id}`}>
+                        {row.first_name} {row.last_name}
+                      </Link>
+                    ) : (
+                      <>
+                        {row.first_name} {row.last_name}
+                      </>
+                    )}
+                  </td>
                   <td className="px-3 py-2 align-top">
                     {row.course_name ?? ""}
                   </td>
@@ -403,13 +476,9 @@ export function StandingsTable({
                     const splits = showSplits
                       ? (splitsByStageId.get(s.stage_id) ?? [])
                       : [];
-
                     return (
-                      <>
-                        <td
-                          key={`stage-${s.stage_id}`}
-                          className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-gray-200"
-                        >
+                      <React.Fragment key={`stage-group-${s.stage_id}`}>
+                        <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-gray-200">
                           <div className="leading-tight">
                             <div>
                               {stage?.time_ms
@@ -443,7 +512,7 @@ export function StandingsTable({
                             </td>
                           );
                         })}
-                      </>
+                      </React.Fragment>
                     );
                   })}
 
