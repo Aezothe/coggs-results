@@ -34,7 +34,14 @@ export default function HomePage() {
             Search stages used in COGGS events.
           </p>
         </Link>
-
+        <Link href="/terrain"
+          className="block border border-gray-200 rounded-lg p-5 hover:bg-gray-50 transition"
+        >
+          <h2 className="text-lg font-medium mb-1">Terrain →</h2>
+          <p className="text-sm text-gray-600">
+            See what sorts of terrain gets ridden at COGGS events
+          </p>
+        </Link>
       </div>
     </main>
   );
