@@ -1,6 +1,8 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
+import { TopPerformersTable, type TopPerformer } from "./TopPerformersTable";
+import { EventHistoryTable, type EventSummary } from "./EventHistoryTable";
 
 export const dynamic = "force-dynamic";
 
@@ -46,23 +48,6 @@ type CompetitorRow = {
 type CourseRow = {
   id: string;
   name: string;
-};
-
-type TopPerformer = {
-  identityKey: string;     // person_id if linked, otherwise competitor_id
-  personId: string | null; // for /person/<id> linking
-  displayName: string;
-  best: number;
-  avg: number;
-  rides: number;
-};
-
-type EventSummary = {
-  event_id: string;
-  event_name: string;
-  event_date: string | null;
-  courses: string[];
-  riders: number;
 };
 
 async function fetchStage(stageId: string): Promise<StageRow | null> {
@@ -353,7 +338,7 @@ export default async function StagePage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href="/stages" className="text-gray-100 hover:underline">
+        <Link href="/stages" className="text-gray-900 hover:underline">
           ← All stages
         </Link>
       </nav>
@@ -374,45 +359,7 @@ export default async function StagePage({
         <section className="mb-10">
           <h2 className="text-lg font-medium mb-3">Top performers</h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-100 text-gray-900">
-                <tr>
-                  <th className="text-left px-3 py-2 w-12">#</th>
-                  <th className="text-left px-3 py-2">Name</th>
-                  <th className="text-right px-3 py-2">Best</th>
-                  <th className="text-right px-3 py-2">Average</th>
-                  <th className="text-right px-3 py-2">Rides</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {performers.map((p, i) => (
-                    <tr key={p.identityKey} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-gray-500">{i + 1}</td>
-                        <td className="px-3 py-2">
-                            {p.personId ? (
-                            <Link
-                                href={`/person/${p.personId}`}
-                                className="text-gray-900 hover:underline"
-                            >
-                                {p.displayName}
-                            </Link>
-                            ) : (
-                            p.displayName
-                            )}
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums">
-                            {(p.best * 100).toFixed(1)}%
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                            {(p.avg * 100).toFixed(1)}%
-                        </td>
-                        <td className="px-3 py-2 text-right tabular-nums text-gray-600">
-                            {p.rides}
-                        </td>
-                        </tr>
-                ))}
-              </tbody>
-            </table>
+            <TopPerformersTable performers={performers} />
           </div>
         </section>
       )}
@@ -421,33 +368,7 @@ export default async function StagePage({
         <section>
           <h2 className="text-lg font-medium mb-3">Event history</h2>
           <div className="overflow-x-auto">
-            <table className="min-w-full text-sm">
-              <thead className="bg-gray-100 text-gray-900">
-                <tr>
-                  <th className="text-left px-3 py-2">Date</th>
-                  <th className="text-left px-3 py-2">Event</th>
-                  <th className="text-left px-3 py-2">Courses</th>
-                  <th className="text-right px-3 py-2">Riders</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y">
-                {events.map((ev) => (
-                    <tr key={ev.event_id} className="hover:bg-gray-50">
-                        <td className="px-3 py-2 text-gray-600">{ev.event_date ?? ""}</td>
-                        <td className="px-3 py-2">
-                            <Link
-                            href={`/leaderboard/${ev.event_id}`}
-                            className="text-gray-900 hover:underline"
-                            >
-                            {ev.event_name}
-                            </Link>
-                        </td>
-                        <td className="px-3 py-2 text-gray-600">{ev.courses.join(", ")}</td>
-                        <td className="px-3 py-2 text-right tabular-nums">{ev.riders}</td>
-                        </tr>
-                ))}
-              </tbody>
-            </table>
+            <EventHistoryTable events={events} />
           </div>
         </section>
       )}
