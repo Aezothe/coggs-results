@@ -4,14 +4,7 @@ import Link from "next/link";
 import { useCallback } from "react";
 import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
-
-type StageSummary = {
-  stage_id: string;
-  stage_name: string;
-  best_percentile: number;
-  avg_percentile: number;
-  rides: number;
-};
+import type { StageSummary } from "./PersonStagePerformance";
 
 type SortKey = "stage_name" | "best_percentile" | "avg_percentile" | "rides";
 
@@ -80,18 +73,30 @@ export function PersonStagePerformanceTable({
         <tbody className="divide-y">
           {sorted.map((s) => (
             <tr key={s.stage_id} className="hover:bg-gray-50">
-              <td className="px-3 py-2">
-                <Link href = {`/stages/${s.stage_id}`} >
+              <td className="px-3 py-2 align-top">
+                <Link href={`/stages/${s.stage_id}`}>
                   {s.stage_name}
                 </Link>
+                {s.tags.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {s.tags.map((t) => (
+                      <span
+                        key={t.id}
+                        className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700"
+                      >
+                        {t.name}
+                      </span>
+                    ))}
+                  </div>
+                )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="px-3 py-2 text-right tabular-nums align-top">
                 {(s.best_percentile * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+              <td className="px-3 py-2 text-right tabular-nums text-gray-600 align-top">
                 {(s.avg_percentile * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+              <td className="px-3 py-2 text-right tabular-nums text-gray-600 align-top">
                 {s.rides}
               </td>
             </tr>
