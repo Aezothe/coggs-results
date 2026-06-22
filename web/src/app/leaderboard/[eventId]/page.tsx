@@ -49,22 +49,46 @@ export type SplitTime = {
   split_position: number | null;
 };
 
+type TagRow = {
+  id: string;
+  name: string;
+  category: string;
+};
+
 type EventRow = {
   id: string;
   name: string;
   event_date: string | null;
+  event_type: string | null;
 };
 
 async function fetchEvent(eventId: string): Promise<EventRow | null> {
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("event")
-    .select("id, name, event_date")
+    .select("id, name, event_date, event_type")
     .eq("id", eventId)
     .maybeSingle();
-
   if (error) throw new Error(error.message);
   return (data as EventRow | null) ?? null;
+}
+
+async function fetchEventTags(eventId: string): Promise<TagRow[]> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("event_tag")
+    .select("tag:tag_id(id, name, category)")
+    .eq("event_id", eventId);
+  if (error) throw new Error(error.message);
+
+  type JoinRow = { tag: TagRow | null };
+  return ((data ?? []) as unknown as JoinRow[])
+    .map((r) => r.tag)
+    .filter((t): t is TagRow => !!t)
+    .sort((a, b) => {
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return a.name.localeCompare(b.name);
+    });
 }
 
 async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
@@ -72,7 +96,6 @@ async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
   const pageSize = 1000;
   const all: StandingsRow[] = [];
   let offset = 0;
-
   while (true) {
     const { data, error } = await supabase
       .from("standings_scoped")
@@ -85,41 +108,33 @@ async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
       .order("scope_type", { ascending: true })
       .order("position", { ascending: true, nullsFirst: false })
       .range(offset, offset + pageSize - 1);
-
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
-
     all.push(...(data as StandingsRow[]));
-
     if (data.length < pageSize) break;
     offset += pageSize;
   }
-
   return all;
 }
 
 async function fetchStageTimes(eventId: string): Promise<StageTime[]> {
   const supabase = getServiceClient();
-
   const { data, error } = await supabase
     .from("event_stage_times")
     .select("entry_id, stage_id, stage_name, ordinal, time_ms, stage_position")
     .eq("event_id", eventId);
-
   if (error) throw new Error(error.message);
   return (data ?? []) as StageTime[];
 }
 
 async function fetchSplitTimes(eventId: string): Promise<SplitTime[]> {
   const supabase = getServiceClient();
-
   const { data, error } = await supabase
     .from("event_split_times")
     .select(
       "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position",
     )
     .eq("event_id", eventId);
-
   if (error) throw new Error(error.message);
   return (data ?? []) as SplitTime[];
 }
@@ -129,12 +144,10 @@ function uniqueSorted(
   key: "course_name" | "class_name",
 ): string[] {
   const set = new Set<string>();
-
   for (const r of rows) {
     const v = r[key];
     if (v) set.add(v);
   }
-
   return Array.from(set).sort((a, b) => a.localeCompare(b));
 }
 
@@ -159,6 +172,7 @@ export default async function LeaderboardPage({
   let standings: StandingsRow[] = [];
   let stageTimes: StageTime[] = [];
   let splitTimes: SplitTime[] = [];
+  let eventTags: TagRow[] = [];
   let errorMsg: string | null = null;
 
   try {
@@ -169,8 +183,14 @@ export default async function LeaderboardPage({
     errorMsg = e instanceof Error ? e.message : String(e);
   }
 
-  const courses = uniqueSorted(standings, "course_name");
+  // Tag failures shouldn't break the page.
+  try {
+    eventTags = await fetchEventTags(eventId);
+  } catch {
+    eventTags = [];
+  }
 
+  const courses = uniqueSorted(standings, "course_name");
   const initialCourse =
     sp.course && courses.includes(sp.course) ? sp.course : (courses[0] ?? "");
 
@@ -178,24 +198,44 @@ export default async function LeaderboardPage({
     standings.filter((r) => r.course_name === initialCourse),
     "class_name",
   );
-
   const initialClass =
     sp.class && classes.includes(sp.class) ? sp.class : "";
 
   const initialShowSplits = sp.splits === "1";
-
   const initialSelectedStageIds =
-    sp.stages && sp.stages.length > 0 ? sp.stages.split(",").filter(Boolean) : [];
+    sp.stages && sp.stages.length > 0
+      ? sp.stages.split(",").filter(Boolean)
+      : [];
 
   return (
     <main className="p-6 max-w-6xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href="/events" className="text-blue-600 hover:underline">
+        <Link href="/events" className="text-gray-900 hover:underline">
           ← All events
         </Link>
       </nav>
 
       <h1 className="text-2xl font-semibold mb-1">{event.name}</h1>
+
+      {(event.event_type || eventTags.length > 0) && (
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {event.event_type && (
+            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-800 font-medium">
+              {event.event_type}
+            </span>
+          )}
+          {eventTags.map((t) => (
+            <span
+              key={t.id}
+              className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700"
+              title={t.category}
+            >
+              {t.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="text-sm text-gray-500 mb-6">{event.event_date ?? ""}</p>
 
       {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}

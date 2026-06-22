@@ -50,6 +50,12 @@ type CourseRow = {
   name: string;
 };
 
+type TagRow = {
+  id: string;
+  name: string;
+  category: string;
+};
+
 async function fetchStage(stageId: string): Promise<StageRow | null> {
   const supabase = getServiceClient();
   const { data, error } = await supabase
@@ -59,6 +65,24 @@ async function fetchStage(stageId: string): Promise<StageRow | null> {
     .maybeSingle();
   if (error) throw new Error(error.message);
   return (data as StageRow | null) ?? null;
+}
+
+async function fetchStageTags(stageId: string): Promise<TagRow[]> {
+  const supabase = getServiceClient();
+  const { data, error } = await supabase
+    .from("stage_tag")
+    .select("tag:tag_id(id, name, category)")
+    .eq("stage_id", stageId);
+  if (error) throw new Error(error.message);
+
+  type JoinRow = { tag: TagRow | null };
+  return ((data ?? []) as unknown as JoinRow[])
+    .map((r) => r.tag)
+    .filter((t): t is TagRow => !!t)
+    .sort((a, b) => {
+      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      return a.name.localeCompare(b.name);
+    });
 }
 
 async function fetchRides(stageId: string): Promise<RideRow[]> {
@@ -113,7 +137,6 @@ async function fetchPeopleAndCompetitors(rides: RideRow[]) {
   }
 
   if (competitorIds.length > 0) {
-    // chunk to keep .in() under typical limits
     const chunkSize = 500;
     for (let i = 0; i < competitorIds.length; i += chunkSize) {
       const chunk = competitorIds.slice(i, i + chunkSize);
@@ -149,7 +172,6 @@ async function fetchEventsAndCourses(rides: RideRow[]) {
     }
   }
 
-  // entry -> course_id, so we can attribute courses to events for this stage
   const entriesById = new Map<string, EntryRow>();
   if (entryIds.length > 0) {
     const chunkSize = 500;
@@ -194,7 +216,6 @@ function buildTopPerformers(
   peopleById: Map<string, PersonRow>,
   competitorsById: Map<string, CompetitorRow>,
 ): TopPerformer[] {
-  // Group by person_id when available; fall back to competitor_id.
   const byIdentity = new Map<
     string,
     {
@@ -316,11 +337,20 @@ export default async function StagePage({
   if (!stage) notFound();
 
   let rides: RideRow[] = [];
+  let tags: TagRow[] = [];
   let errorMsg: string | null = null;
+
   try {
     rides = await fetchRides(stageId);
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
+  }
+
+  // Tag failures shouldn't break the page.
+  try {
+    tags = await fetchStageTags(stageId);
+  } catch {
+    tags = [];
   }
 
   let performers: TopPerformer[] = [];
@@ -344,6 +374,21 @@ export default async function StagePage({
       </nav>
 
       <h1 className="text-2xl font-semibold mb-1">{stage.name}</h1>
+
+      {tags.length > 0 && (
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {tags.map((t) => (
+            <span
+              key={t.id}
+              className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700"
+              title={t.category}
+            >
+              {t.name}
+            </span>
+          ))}
+        </div>
+      )}
+
       <p className="text-sm text-gray-500 mb-6">
         {events.length} event{events.length === 1 ? "" : "s"} ·{" "}
         {performers.length} rider{performers.length === 1 ? "" : "s"}
@@ -358,18 +403,14 @@ export default async function StagePage({
       {performers.length > 0 && (
         <section className="mb-10">
           <h2 className="text-lg font-medium mb-3">Top performers</h2>
-          <div className="overflow-x-auto">
-            <TopPerformersTable performers={performers} />
-          </div>
+          <TopPerformersTable performers={performers} />
         </section>
       )}
 
       {events.length > 0 && (
         <section>
           <h2 className="text-lg font-medium mb-3">Event history</h2>
-          <div className="overflow-x-auto">
-            <EventHistoryTable events={events} />
-          </div>
+          <EventHistoryTable events={events} />
         </section>
       )}
     </main>
