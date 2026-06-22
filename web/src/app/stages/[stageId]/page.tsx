@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { TopPerformersTable, type TopPerformer } from "./TopPerformersTable";
 import { EventHistoryTable, type EventSummary } from "./EventHistoryTable";
+import { TagPill } from "@/components/TagPill";
 
 export const dynamic = "force-dynamic";
 
@@ -377,17 +378,11 @@ export default async function StagePage({
 
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-2">
-          {tags.map((t) => (
-            <span
-              key={t.id}
-              className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700"
-              title={t.category}
-            >
-              {t.name}
-            </span>
-          ))}
+            {tags.map((t) => (
+            <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
+            ))}
         </div>
-      )}
+        )}
 
       <p className="text-sm text-gray-500 mb-6">
         {events.length} event{events.length === 1 ? "" : "s"} ·{" "}

@@ -2,6 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { StandingsTable } from "./StandingsTable";
+import { TagPill } from "@/components/TagPill";
 
 export const dynamic = "force-dynamic";
 
@@ -218,23 +219,17 @@ export default async function LeaderboardPage({
       <h1 className="text-2xl font-semibold mb-1">{event.name}</h1>
 
       {(event.event_type || eventTags.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {event.event_type && (
-            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-800 font-medium">
-              {event.event_type}
-            </span>
-          )}
-          {eventTags.map((t) => (
-            <span
-              key={t.id}
-              className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-100 text-gray-700"
-              title={t.category}
-            >
-              {t.name}
-            </span>
-          ))}
-        </div>
-      )}
+  <div className="flex flex-wrap items-center gap-2 mb-2">
+    {event.event_type && (
+      <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-800 font-medium">
+        {event.event_type}
+      </span>
+    )}
+    {eventTags.map((t) => (
+      <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
+    ))}
+  </div>
+)}
 
       <p className="text-sm text-gray-500 mb-6">{event.event_date ?? ""}</p>
 

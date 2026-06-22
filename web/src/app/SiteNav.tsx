@@ -17,6 +17,9 @@ export function SiteNav() {
           <Link href="/stages" className="hover:text-gray-900">
             Stages
           </Link>
+          <Link href="/terrain" className="hover:text-gray-900">
+            Terrain
+          </Link>
         </div>
       </div>
     </nav>
