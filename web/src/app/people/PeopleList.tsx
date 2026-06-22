@@ -1,12 +1,16 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useSortedTable } from "@/lib/useSortedTable";
+import { SortableHeader } from "@/components/SortableHeader";
 import type { PersonRow } from "./page";
 
 function displayName(p: PersonRow): string {
   return [p.first_name, p.last_name].filter(Boolean).join(" ") || "Unnamed";
 }
+
+type SortKey = "name" | "event_count";
 
 export function PeopleList({ people }: { people: PersonRow[] }) {
   const [query, setQuery] = useState("");
@@ -16,6 +20,21 @@ export function PeopleList({ people }: { people: PersonRow[] }) {
     if (!q) return people;
     return people.filter((p) => displayName(p).toLowerCase().includes(q));
   }, [people, query]);
+
+  const getValue = useCallback((row: PersonRow, key: SortKey) => {
+    switch (key) {
+      case "name":
+        return displayName(row).toLowerCase();
+      case "event_count":
+        return row.event_count;
+    }
+  }, []);
+
+  const { sorted, sort, onSort } = useSortedTable<PersonRow, SortKey>(
+    filtered,
+    getValue,
+    { key: "event_count", dir: "desc" },
+  );
 
   return (
     <div>
@@ -36,21 +55,43 @@ export function PeopleList({ people }: { people: PersonRow[] }) {
       {filtered.length === 0 ? (
         <p className="text-gray-500 text-sm">No people match.</p>
       ) : (
-        <ul className="divide-y divide-gray-200">
-          {filtered.map((p) => (
-            <li key={p.id}>
-                <Link href={`/person/${p.id}`}
-                className="flex items-center justify-between py-2 hover:bg-gray-50 px-2 -mx-2 rounded"
-                >
-                <span>{displayName(p)}</span>
-                <span className="text-sm text-gray-500 tabular-nums">
-                  {p.event_count} event{p.event_count === 1 ? "" : "s"}
-                </span>
-
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-100">
+              <tr>
+                <SortableHeader<SortKey>
+                  label="Name"
+                  sortKey="name"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
+                <SortableHeader<SortKey>
+                  label="Events"
+                  sortKey="event_count"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                  align="right"
+                />
+              </tr>
+            </thead>
+            <tbody className="divide-y">
+              {sorted.map((p) => (
+                <tr key={p.id} className="hover:bg-gray-50">
+                  <td className="px-3 py-2">
+                    <Link href ={`/person/${p.id}`}>
+                      {displayName(p)}
+                    </Link>
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+                    {p.event_count}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
