@@ -3,7 +3,7 @@ import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { PersonResultsTable } from "./PersonResultsTable";
 import { PercentileChart } from "./PercentileChart";
-import { PersonStagePerformance } from "./PersonStagePerformance.tsx";
+import { PersonStagePerformance } from "./PersonStagePerformance";
 
 export const dynamic = "force-dynamic";
 
