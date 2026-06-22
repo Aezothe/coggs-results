@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/format";
 import type { StandingsRow, StageTime, SplitTime } from "./page";
+import Link from "next/link";
 
 type SplitDef = {
   split_segment_id: string;
@@ -370,15 +371,25 @@ export function StandingsTable({
             </thead>
 
             <tbody className="divide-y">
-              {filtered.map((row) => (
-                <tr key={row.entry_id}>
-                  <td className="px-3 py-2 align-top">
-                    {row.is_dnf ? "—" : (row.position ?? "")}
-                  </td>
-
-                  <td className="px-3 py-2 align-top">
-                    {row.first_name} {row.last_name}
-                  </td>
+            {filtered.map((row) => (
+              <tr key={row.entry_id} className="hover:bg-gray-50">
+                <td className="px-3 py-2 align-top">
+                  {row.is_dnf ? "—" : (row.position ?? "")}
+                </td>
+                <td className="px-3 py-2 align-top">
+                  {row.person_id ? (
+                    <Link
+                      href={`/person/${row.person_id}`}
+                      className="text-gray-900 hover:underline"
+                    >
+                      {row.first_name} {row.last_name}
+                    </Link>
+                  ) : (
+                    <>
+                      {row.first_name} {row.last_name}
+                    </>
+                  )}
+                </td>
 
                   <td className="px-3 py-2 align-top">
                     {row.course_name ?? ""}

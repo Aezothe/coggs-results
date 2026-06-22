@@ -2,6 +2,7 @@
 
 import { formatTime } from "@/lib/format";
 import type { PersonResult } from "./page";
+import Link from "next/link";
 
 export function PersonResultsTable({ results }: { results: PersonResult[] }) {
   return (
@@ -20,20 +21,28 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
         <tbody>
           {results.map((r) => (
             <tr
-              key={r.event_id}
+              key={r.entry_id}
               className="border-t border-gray-200 hover:bg-gray-50"
             >
               <td className="px-3 py-2 text-gray-600">{r.event_date ?? ""}</td>
-              <td className="px-3 py-2">{r.event_name ?? ""}</td>
+              <td className="px-3 py-2">
+                <Link
+                  href={`/leaderboard/${r.event_id}`}
+                  className="text-gray-900 hover:underline"
+                >
+                  {r.event_name ?? ""}
+                </Link>
+              </td>
               <td className="px-3 py-2">{r.course_name ?? ""}</td>
               <td className="px-3 py-2">{r.class_name ?? ""}</td>
+              <td className="px-3 py-2 text-right tabular-nums">
+                {r.position ?? ""}
+              </td>
               <td className="px-3 py-2 text-right tabular-nums">
                 {r.is_dnf ? "DNF" : formatTime(r.total_time_ms)}
               </td>
               <td className="px-3 py-2 text-right tabular-nums">
-                {r.percentile != null
-                  ? `${r.percentile.toFixed(1)}%`
-                  : ""}
+                {r.percentile != null ? `${(r.percentile * 100).toFixed(1)}%` : ""}
               </td>
             </tr>
           ))}

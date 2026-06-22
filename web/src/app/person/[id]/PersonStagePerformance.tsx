@@ -1,4 +1,5 @@
 import { getServiceClient } from "@/lib/supabase/server";
+import Link from "next/link";
 
 type StageRide = {
   stage_id: string;
@@ -130,8 +131,15 @@ export async function PersonStagePerformance({
           </thead>
           <tbody className="divide-y">
             {summaries.map((s) => (
-              <tr key={s.stage_id}>
-                <td className="px-3 py-2">{s.stage_name}</td>
+              <tr key={s.stage_id} className="hover:bg-gray-50">
+                <td className="px-3 py-2">
+                  <Link
+                    href={`/stages/${s.stage_id}`}
+                    className="text-gray-900 hover:underline"
+                  >
+                    {s.stage_name}
+                  </Link>
+                </td>
                 <td className="px-3 py-2 text-right tabular-nums">
                   {(s.best_percentile * 100).toFixed(1)}%
                 </td>
