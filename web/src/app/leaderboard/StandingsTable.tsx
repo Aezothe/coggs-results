@@ -3,7 +3,13 @@
 import { useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { formatTime } from "@/lib/format";
-import type { StandingsRow } from "./page";
+import type { StandingsRow, ScopeType } from "./page";
+
+const SCOPES: { value: ScopeType; label: string }[] = [
+  { value: "overall", label: "Overall" },
+  { value: "class", label: "Class" },
+  { value: "age", label: "Age" },
+];
 
 export function StandingsTable({
   standings,
@@ -11,6 +17,7 @@ export function StandingsTable({
   classes,
   initialCourse,
   initialClass,
+  initialScope,
   eventId,
 }: {
   standings: StandingsRow[];
@@ -18,18 +25,24 @@ export function StandingsTable({
   classes: string[];
   initialCourse: string;
   initialClass: string;
+  initialScope: ScopeType;
   eventId: string;
 }) {
   const router = useRouter();
   const [, startTransition] = useTransition();
 
+  const [scope, setScope] = useState<ScopeType>(initialScope);
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
 
-  // Push the filter state into the URL so it's shareable + survives reload.
-  function updateUrl(nextCourse: string, nextClass: string) {
+  function updateUrl(
+    nextScope: ScopeType,
+    nextCourse: string,
+    nextClass: string,
+  ) {
     const sp = new URLSearchParams();
     sp.set("event", eventId);
+    sp.set("scope", nextScope);
     if (nextCourse) sp.set("course", nextCourse);
     if (nextClass) sp.set("class", nextClass);
     startTransition(() => {
@@ -37,18 +50,21 @@ export function StandingsTable({
     });
   }
 
-  function onCourseChange(v: string) {
-    setCourse(v);
-    updateUrl(v, klass);
-  }
-  function onClassChange(v: string) {
-    setKlass(v);
-    updateUrl(course, v);
+  function onScopeChange(v: ScopeType) {
+    setScope(v);
+    updateUrl(v, course, klass);
   }
 
-  // When the course filter changes, narrow the class list to classes
-  // that actually exist within the selected course. Mirrors how the
-  // old leaderboard.js did dependent filters.
+  function onCourseChange(v: string) {
+    setCourse(v);
+    updateUrl(scope, v, klass);
+  }
+
+  function onClassChange(v: string) {
+    setKlass(v);
+    updateUrl(scope, course, v);
+  }
+
   const visibleClasses = useMemo(() => {
     if (!course) return classes;
     const set = new Set<string>();
@@ -68,7 +84,24 @@ export function StandingsTable({
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-4">
+      <div className="flex flex-wrap gap-3 mb-4 items-center">
+        {/* Scope toggle */}
+        <div className="inline-flex rounded border border-gray-300 overflow-hidden text-sm">
+          {SCOPES.map((s) => (
+            <button
+              key={s.value}
+              onClick={() => onScopeChange(s.value)}
+              className={`px-3 py-1 ${
+                scope === s.value
+                  ? "bg-blue-600 text-white"
+                  : "bg-white text-gray-700 hover:bg-gray-50"
+              }`}
+            >
+              {s.label}
+            </button>
+          ))}
+        </div>
+
         <label className="flex items-center gap-2 text-sm">
           <span className="text-gray-600">Course:</span>
           <select
@@ -106,7 +139,7 @@ export function StandingsTable({
             onClick={() => {
               setCourse("");
               setKlass("");
-              updateUrl("", "");
+              updateUrl(scope, "", "");
             }}
             className="text-sm text-blue-600 hover:underline"
           >
@@ -120,33 +153,47 @@ export function StandingsTable({
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-gray-500">No results match the current filters.</p>
+        <p className="text-gray-500">No results match the current scope and filters.</p>
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100 sticky top-0">
+            <thead className="bg-gray-100 text-gray-900 sticky top-0">
               <tr>
                 <th className="text-left px-3 py-2 w-12">Pos</th>
                 <th className="text-left px-3 py-2">Name</th>
                 <th className="text-left px-3 py-2">Course</th>
                 <th className="text-left px-3 py-2">Class</th>
+                {scope === "age" && (
+                  <th className="text-left px-3 py-2">Age Group</th>
+                )}
                 <th className="text-right px-3 py-2">Total</th>
+                <th className="text-right px-3 py-2">Back</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row, i) => (
+              {filtered.map((row) => (
                 <tr
                   key={row.entry_id}
                   className="border-t border-gray-200 hover:bg-gray-50"
                 >
-                  <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+                  <td className="px-3 py-2 text-gray-500">
+                    {row.is_dnf ? "—" : row.position ?? ""}
+                  </td>
                   <td className="px-3 py-2">
                     {row.first_name} {row.last_name}
                   </td>
                   <td className="px-3 py-2">{row.course_name ?? ""}</td>
                   <td className="px-3 py-2">{row.class_name ?? ""}</td>
+                  {scope === "age" && (
+                    <td className="px-3 py-2">{row.age_category ?? ""}</td>
+                  )}
                   <td className="px-3 py-2 text-right tabular-nums">
                     {row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}
+                  </td>
+                  <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+                    {row.is_dnf || row.time_back_ms == null
+                      ? ""
+                      : `+${formatTime(row.time_back_ms)}`}
                   </td>
                 </tr>
               ))}
