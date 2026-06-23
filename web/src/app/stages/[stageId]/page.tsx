@@ -3,6 +3,7 @@ import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { TopPerformersTable, type TopPerformer } from "./TopPerformersTable";
 import { EventHistoryTable, type EventSummary } from "./EventHistoryTable";
+import { StageFilters } from "./StageFilters";
 import { TagPill } from "@/components/TagPill";
 
 export const dynamic = "force-dynamic";
@@ -13,14 +14,16 @@ type StageRow = {
 };
 
 type RideRow = {
-    event_id: string;
-    entry_id: string;
-    person_id: string | null;
-    competitor_id: string;
-    time_ms: number | null;
-    stage_position_class: number | null;
-    finishers_class: number | null;
-  };
+  event_id: string;
+  entry_id: string;
+  person_id: string | null;
+  competitor_id: string;
+  time_ms: number | null;
+  stage_position_class: number | null;
+  finishers_class: number | null;
+  course_name: string | null;
+  class_name: string | null;
+};
 
 type EventRow = {
   id: string;
@@ -95,7 +98,7 @@ async function fetchRides(stageId: string): Promise<RideRow[]> {
     const { data, error } = await supabase
       .from("event_stage_times")
       .select(
-        "event_id, entry_id, person_id, competitor_id, time_ms, stage_position_class, finishers_class",
+        "event_id, entry_id, person_id, competitor_id, time_ms, stage_position_class, finishers_class, course_name, class_name",
       )
       .eq("stage_id", stageId)
       .range(offset, offset + pageSize - 1);
@@ -228,7 +231,7 @@ function buildTopPerformers(
 
   for (const r of rides) {
     if (r.time_ms == null) continue;
-    if (r.stage_position_class == null || r.finishers_class== null) continue;
+    if (r.stage_position_class == null || r.finishers_class == null) continue;
 
     const identityKey = r.person_id ?? `c:${r.competitor_id}`;
     const personId = r.person_id;
@@ -329,10 +332,13 @@ function buildEventSummaries(
 
 export default async function StagePage({
   params,
+  searchParams,
 }: {
   params: Promise<{ stageId: string }>;
+  searchParams: Promise<{ course?: string; class?: string }>;
 }) {
   const { stageId } = await params;
+  const sp = await searchParams;
 
   const stage = await fetchStage(stageId);
   if (!stage) notFound();
@@ -347,23 +353,54 @@ export default async function StagePage({
     errorMsg = e instanceof Error ? e.message : String(e);
   }
 
-  // Tag failures shouldn't break the page.
   try {
     tags = await fetchStageTags(stageId);
   } catch {
     tags = [];
   }
 
+  // Build filter options from the raw ride set
+  const allCourses = Array.from(
+    new Set(rides.map((r) => r.course_name).filter((x): x is string => !!x)),
+  ).sort((a, b) => a.localeCompare(b));
+
+  const selectedCourse =
+    sp.course && allCourses.includes(sp.course) ? sp.course : "";
+
+  const allClasses = Array.from(
+    new Set(
+      rides
+        .filter((r) => !selectedCourse || r.course_name === selectedCourse)
+        .map((r) => r.class_name)
+        .filter((x): x is string => !!x),
+    ),
+  ).sort((a, b) => a.localeCompare(b));
+
+  const selectedClass =
+    sp.class && allClasses.includes(sp.class) ? sp.class : "";
+
+  // Filter rides before aggregation
+  const filteredRides = rides.filter((r) => {
+    if (selectedCourse && r.course_name !== selectedCourse) return false;
+    if (selectedClass && r.class_name !== selectedClass) return false;
+    return true;
+  });
+
   let performers: TopPerformer[] = [];
   let events: EventSummary[] = [];
 
-  if (!errorMsg && rides.length > 0) {
+  if (!errorMsg && filteredRides.length > 0) {
     const { peopleById, competitorsById } =
-      await fetchPeopleAndCompetitors(rides);
+      await fetchPeopleAndCompetitors(filteredRides);
     const { eventsById, entriesById, coursesById } =
-      await fetchEventsAndCourses(rides);
-    performers = buildTopPerformers(rides, peopleById, competitorsById);
-    events = buildEventSummaries(rides, eventsById, entriesById, coursesById);
+      await fetchEventsAndCourses(filteredRides);
+    performers = buildTopPerformers(filteredRides, peopleById, competitorsById);
+    events = buildEventSummaries(
+      filteredRides,
+      eventsById,
+      entriesById,
+      coursesById,
+    );
   }
 
   return (
@@ -378,21 +415,31 @@ export default async function StagePage({
 
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-2">
-            {tags.map((t) => (
+          {tags.map((t) => (
             <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
-            ))}
+          ))}
         </div>
-        )}
+      )}
 
-      <p className="text-sm text-gray-500 mb-6">
+      <p className="text-sm text-gray-500 mb-4">
         {events.length} event{events.length === 1 ? "" : "s"} ·{" "}
         {performers.length} rider{performers.length === 1 ? "" : "s"}
       </p>
 
+      <StageFilters
+        stageId={stageId}
+        courses={allCourses}
+        classes={allClasses}
+        selectedCourse={selectedCourse}
+        selectedClass={selectedClass}
+      />
+
       {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
 
       {!errorMsg && performers.length === 0 && (
-        <p className="text-gray-500">No riders have raced this stage yet.</p>
+        <p className="text-gray-500">
+          No rides on this stage match the current filters.
+        </p>
       )}
 
       {performers.length > 0 && (
