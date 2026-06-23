@@ -4,6 +4,7 @@ import "./globals.css";
 import { SiteNav } from "./SiteNav";
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { Analytics } from '@vercel/analytics/next';
+import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -32,6 +33,12 @@ export default function RootLayout({
     >
       <body className="antialiased">
       <SiteNav />
+      <ProgressBar
+          height="3px"
+          color="#2563eb"
+          options={{ showSpinner: false }}
+          shallowRouting
+        />
       {children}
       <SpeedInsights />
       <Analytics />
