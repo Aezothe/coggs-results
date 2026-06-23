@@ -51,35 +51,40 @@ async function fetchPersonResults(personId: string): Promise<PersonResult[]> {
   const competitorIds = (competitors ?? []).map((c) => c.id as string);
   if (competitorIds.length === 0) return [];
 
-  // 2. standings rows for any of those competitor ids
+  // 2. standings + event name in a single query via nested select
   const { data: standingsRows, error: sErr } = await supabase
     .from("standings")
     .select(
-      "entry_id, event_id, event_date, course_name, class_name, total_time_ms, is_dnf, position, percentile",
+      "entry_id, event_id, event_date, course_name, class_name, total_time_ms, is_dnf, position, percentile, event:event_id(name)",
     )
     .in("competitor_id", competitorIds)
     .order("event_date", { ascending: false });
   if (sErr) throw new Error(sErr.message);
 
-  const rows = standingsRows ?? [];
-  if (rows.length === 0) return [];
+  type JoinRow = {
+    entry_id: string;
+    event_id: string;
+    event_date: string | null;
+    course_name: string | null;
+    class_name: string | null;
+    total_time_ms: number | null;
+    is_dnf: boolean | null;
+    position: number | null;
+    percentile: number | null;
+    event: { name: string | null } | null;
+  };
 
-  // 3. event names (standings view doesn't include them)
-  const eventIds = Array.from(new Set(rows.map((r) => r.event_id as string)));
-  const { data: events, error: eErr } = await supabase
-    .from("event")
-    .select("id, name")
-    .in("id", eventIds);
-  if (eErr) throw new Error(eErr.message);
-
-  const nameById = new Map<string, string>();
-  for (const ev of events ?? []) {
-    nameById.set(ev.id as string, ev.name as string);
-  }
-
-  return rows.map((r) => ({
-    ...r,
-    event_name: nameById.get(r.event_id as string) ?? null,
+  return ((standingsRows ?? []) as unknown as JoinRow[]).map((r) => ({
+    entry_id: r.entry_id,
+    event_id: r.event_id,
+    event_name: r.event?.name ?? null,
+    event_date: r.event_date,
+    course_name: r.course_name,
+    class_name: r.class_name,
+    total_time_ms: r.total_time_ms,
+    is_dnf: r.is_dnf ?? false,
+    position: r.position,
+    percentile: r.percentile,
   })) as PersonResult[];
 }
 
