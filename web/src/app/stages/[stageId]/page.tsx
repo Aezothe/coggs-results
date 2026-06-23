@@ -13,14 +13,14 @@ type StageRow = {
 };
 
 type RideRow = {
-  event_id: string;
-  entry_id: string;
-  person_id: string | null;
-  competitor_id: string;
-  time_ms: number | null;
-  stage_position: number | null;
-  finishers_on_stage: number | null;
-};
+    event_id: string;
+    entry_id: string;
+    person_id: string | null;
+    competitor_id: string;
+    time_ms: number | null;
+    stage_position_class: number | null;
+    finishers_class: number | null;
+  };
 
 type EventRow = {
   id: string;
@@ -95,7 +95,7 @@ async function fetchRides(stageId: string): Promise<RideRow[]> {
     const { data, error } = await supabase
       .from("event_stage_times")
       .select(
-        "event_id, entry_id, person_id, competitor_id, time_ms, stage_position, finishers_on_stage",
+        "event_id, entry_id, person_id, competitor_id, time_ms, stage_position_class, finishers_class",
       )
       .eq("stage_id", stageId)
       .range(offset, offset + pageSize - 1);
@@ -228,7 +228,7 @@ function buildTopPerformers(
 
   for (const r of rides) {
     if (r.time_ms == null) continue;
-    if (r.stage_position == null || r.finishers_on_stage == null) continue;
+    if (r.stage_position_class == null || r.finishers_class== null) continue;
 
     const identityKey = r.person_id ?? `c:${r.competitor_id}`;
     const personId = r.person_id;
@@ -253,7 +253,7 @@ function buildTopPerformers(
     }
     byIdentity
       .get(identityKey)!
-      .pcts.push(percentile(r.stage_position, r.finishers_on_stage));
+      .pcts.push(percentile(r.stage_position_class, r.finishers_class));
   }
 
   const out: TopPerformer[] = [];

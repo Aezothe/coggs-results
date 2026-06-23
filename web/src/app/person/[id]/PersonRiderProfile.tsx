@@ -2,11 +2,11 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { TagPill } from "@/components/TagPill";
 
 type StageRide = {
-  stage_id: string;
-  stage_position: number | null;
-  finishers_on_stage: number | null;
-  time_ms: number | null;
-};
+    stage_id: string;
+    stage_position_class: number | null;
+    finishers_class: number | null;
+    time_ms: number | null;
+  };
 
 type StageTagJoin = {
   stage_id: string;
@@ -30,7 +30,7 @@ async function fetchRides(personId: string): Promise<StageRide[]> {
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("event_stage_times")
-    .select("stage_id, stage_position, finishers_on_stage, time_ms")
+    .select("stage_id, stage_position_class, finishers_class, time_ms")
     .eq("person_id", personId);
   if (error) throw new Error(error.message);
   return (data ?? []) as StageRide[];
@@ -76,12 +76,12 @@ function aggregateByTag(
 
   for (const r of rides) {
     if (r.time_ms == null) continue; // DNF on this stage
-    if (r.stage_position == null || r.finishers_on_stage == null) continue;
+    if (r.stage_position_class == null || r.finishers_class == null) continue;
 
     const tags = tagsByStage.get(r.stage_id);
     if (!tags) continue;
 
-    const pct = percentile(r.stage_position, r.finishers_on_stage);
+    const pct = percentile(r.stage_position_class, r.finishers_class);
 
     for (const [tag_id, { name }] of tags.entries()) {
       if (!byTag.has(tag_id)) {

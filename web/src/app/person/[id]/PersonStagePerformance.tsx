@@ -5,8 +5,8 @@ type StageRide = {
   stage_id: string;
   stage_name: string;
   time_ms: number | null;
-  stage_position: number | null;
-  finishers_on_stage: number | null;
+  stage_position_class: number | null;
+  finishers_class: number | null;
 };
 
 type StageTagJoin = {
@@ -33,7 +33,7 @@ async function fetchStageRides(personId: string): Promise<StageRide[]> {
   const { data, error } = await supabase
     .from("event_stage_times")
     .select(
-      "stage_id, stage_name, time_ms, stage_position, finishers_on_stage",
+      "stage_id, stage_name, time_ms, stage_position_class, finishers_class",
     )
     .eq("person_id", personId);
 
@@ -86,10 +86,10 @@ function summarizeStages(
 
   for (const r of rides) {
     if (r.time_ms == null) continue;
-    if (r.stage_position == null) continue;
-    if (r.finishers_on_stage == null) continue;
+    if (r.stage_position_class == null) continue;
+    if (r.finishers_class == null) continue;
 
-    const pct = percentile(r.stage_position, r.finishers_on_stage);
+    const pct = percentile(r.stage_position_class, r.finishers_class);
     if (pct == null) continue;
 
     if (!byStage.has(r.stage_id)) {

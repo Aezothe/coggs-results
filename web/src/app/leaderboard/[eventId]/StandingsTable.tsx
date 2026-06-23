@@ -1,6 +1,6 @@
 "use client";
-import React from "react";
 
+import React from "react";
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
@@ -15,9 +15,6 @@ type SplitDef = {
   split_ordinal: number;
 };
 
-// Fixed-column sort keys are literal strings.
-// Stage and split columns use string keys with prefixes so the
-// getValue function can dispatch on them dynamically.
 type SortKey =
   | "position"
   | "name"
@@ -27,6 +24,27 @@ type SortKey =
   | "time_back_ms"
   | `stage:${string}`
   | `split:${string}`;
+
+// Choose class-scoped or course-scoped values based on whether a class is selected.
+function stagePositionFor(
+  stage: StageTime | undefined,
+  classSelected: boolean,
+): number | null {
+  if (!stage) return null;
+  return classSelected
+    ? (stage.stage_position_class ?? null)
+    : (stage.stage_position_course ?? null);
+}
+
+function splitPositionFor(
+  split: SplitTime | undefined,
+  classSelected: boolean,
+): number | null {
+  if (!split) return null;
+  return classSelected
+    ? (split.split_position_class ?? null)
+    : (split.split_position_course ?? null);
+}
 
 export function StandingsTable({
   standings,
@@ -60,6 +78,8 @@ export function StandingsTable({
   const [selectedStageIds, setSelectedStageIds] = useState<string[] | null>(
     initialSelectedStageIds.length > 0 ? initialSelectedStageIds : null,
   );
+
+  const classSelected = Boolean(klass);
 
   function updateUrl(opts: {
     nextCourse?: string;
@@ -139,7 +159,6 @@ export function StandingsTable({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [course, standings]);
 
-  // Filter (no sort yet — sort happens in useSortedTable below)
   const filtered = useMemo(() => {
     return standings.filter((r) => {
       if (r.course_name !== course) return false;
@@ -149,7 +168,6 @@ export function StandingsTable({
     });
   }, [standings, course, displayScope, klass]);
 
-  // entry_id -> stage_id -> stage time row
   const stageMap = useMemo(() => {
     const map = new Map<string, Map<string, StageTime>>();
     for (const row of stageTimes) {
@@ -159,7 +177,6 @@ export function StandingsTable({
     return map;
   }, [stageTimes]);
 
-  // entry_id -> split_segment_id -> split time row
   const splitMap = useMemo(() => {
     const map = new Map<string, Map<string, SplitTime>>();
     for (const row of splitTimes) {
@@ -169,7 +186,6 @@ export function StandingsTable({
     return map;
   }, [splitTimes]);
 
-  // canonical stage_id -> splits (ordered)
   const splitsByStageId = useMemo(() => {
     const map = new Map<string, Map<string, SplitDef>>();
     for (const row of splitTimes) {
@@ -223,7 +239,6 @@ export function StandingsTable({
     return stageList.filter((s) => set.has(s.stage_id));
   }, [stageList, selectedStageIds]);
 
-  // The sort comparator. Returns string or number or null per row+key.
   const getValue = useCallback(
     (row: StandingsRow, key: SortKey): string | number | null => {
       if (key === "position") {
@@ -317,7 +332,8 @@ export function StandingsTable({
           <span className="text-gray-600">Stages:</span>
           {stageList.map((s) => {
             const checked =
-              selectedStageIds === null || selectedStageIds.includes(s.stage_id);
+              selectedStageIds === null ||
+              selectedStageIds.includes(s.stage_id);
             return (
               <label
                 key={s.stage_id}
@@ -476,6 +492,7 @@ export function StandingsTable({
                     const splits = showSplits
                       ? (splitsByStageId.get(s.stage_id) ?? [])
                       : [];
+                    const stagePos = stagePositionFor(stage, classSelected);
                     return (
                       <React.Fragment key={`stage-group-${s.stage_id}`}>
                         <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-gray-200">
@@ -486,7 +503,7 @@ export function StandingsTable({
                                 : ""}
                             </div>
                             <div className="text-xs text-gray-500">
-                              {stage?.stage_position ?? ""}
+                              {stagePos ?? ""}
                             </div>
                           </div>
                         </td>
@@ -494,6 +511,10 @@ export function StandingsTable({
                           const split = splitMap
                             .get(row.entry_id)
                             ?.get(sp.split_segment_id);
+                          const splitPos = splitPositionFor(
+                            split,
+                            classSelected,
+                          );
                           return (
                             <td
                               key={`split-${sp.split_segment_id}`}
@@ -506,7 +527,7 @@ export function StandingsTable({
                                     : ""}
                                 </div>
                                 <div className="text-xs text-gray-500">
-                                  {split?.split_position ?? ""}
+                                  {splitPos ?? ""}
                                 </div>
                               </div>
                             </td>

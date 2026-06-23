@@ -35,7 +35,10 @@ export type StageTime = {
   stage_name: string;
   ordinal: number;
   time_ms: number | null;
-  stage_position: number | null;
+  stage_position_course: number | null;
+  finishers_course: number | null;
+  stage_position_class: number | null;
+  finishers_class: number | null;
 };
 
 export type SplitTime = {
@@ -47,7 +50,10 @@ export type SplitTime = {
   parent_stage_id: string;
   parent_stage_ordinal: number;
   time_ms: number | null;
-  split_position: number | null;
+  split_position_course: number | null;
+  split_finishers_course: number | null;
+  split_position_class: number | null;
+  split_finishers_class: number | null;
 };
 
 type TagRow = {
@@ -122,7 +128,9 @@ async function fetchStageTimes(eventId: string): Promise<StageTime[]> {
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("event_stage_times")
-    .select("entry_id, stage_id, stage_name, ordinal, time_ms, stage_position")
+    .select(
+      "entry_id, stage_id, stage_name, ordinal, time_ms, stage_position_course, finishers_course, stage_position_class, finishers_class",
+    )
     .eq("event_id", eventId);
   if (error) throw new Error(error.message);
   return (data ?? []) as StageTime[];
@@ -133,7 +141,7 @@ async function fetchSplitTimes(eventId: string): Promise<SplitTime[]> {
   const { data, error } = await supabase
     .from("event_split_times")
     .select(
-      "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position",
+      "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position_course, split_finishers_course, split_position_class, split_finishers_class",
     )
     .eq("event_id", eventId);
   if (error) throw new Error(error.message);
@@ -184,7 +192,6 @@ export default async function LeaderboardPage({
     errorMsg = e instanceof Error ? e.message : String(e);
   }
 
-  // Tag failures shouldn't break the page.
   try {
     eventTags = await fetchEventTags(eventId);
   } catch {
@@ -219,17 +226,17 @@ export default async function LeaderboardPage({
       <h1 className="text-2xl font-semibold mb-1">{event.name}</h1>
 
       {(event.event_type || eventTags.length > 0) && (
-  <div className="flex flex-wrap items-center gap-2 mb-2">
-    {event.event_type && (
-      <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-800 font-medium">
-        {event.event_type}
-      </span>
-    )}
-    {eventTags.map((t) => (
-      <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
-    ))}
-  </div>
-)}
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {event.event_type && (
+            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-800 font-medium">
+              {event.event_type}
+            </span>
+          )}
+          {eventTags.map((t) => (
+            <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
+          ))}
+        </div>
+      )}
 
       <p className="text-sm text-gray-500 mb-6">{event.event_date ?? ""}</p>
 
