@@ -127,8 +127,10 @@ export async function PersonRiderProfile({
     errorMsg = e instanceof Error ? e.message : String(e);
   }
 
-  const aggregations = aggregateByTag(rides, stageTags);
-  const top5 = aggregations.slice(0, 5);
+const MIN_RIDES = 3;
+const aggregations = aggregateByTag(rides, stageTags);
+const qualified = aggregations.filter((t) => t.rides >= MIN_RIDES);
+const top5 = qualified.slice(0, 5);
 
   // Don't render the section at all if there's nothing meaningful to show.
   if (errorMsg || top5.length === 0) {
