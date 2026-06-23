@@ -1,10 +1,9 @@
 import type { Metadata } from "next";
+import React from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { SiteNav } from "./SiteNav";
-import { SpeedInsights } from '@vercel/speed-insights/next';
-import { Analytics } from '@vercel/analytics/next';
-import { AppProgressBar as ProgressBar } from "next-nprogress-bar";
+import { Providers } from "./Providers";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -23,26 +22,16 @@ export const metadata: Metadata = {
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
-    >
-      <body className="antialiased">
-      <SiteNav />
-      <ProgressBar
-          height="3px"
-          color="#2563eb"
-          options={{ showSpinner: false }}
-          shallowRouting
-        />
-      {children}
-      <SpeedInsights />
-      <Analytics />
-    </body>
+    <html lang="en">
+      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+        <SiteNav />
+        <Providers />
+        {children}
+      </body>
     </html>
   );
 }
