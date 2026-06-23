@@ -11,6 +11,7 @@ export const dynamic = "force-dynamic";
 type StageRow = {
   id: string;
   name: string;
+  location: { name: string } | null;
 };
 
 type RideRow = {
@@ -64,11 +65,11 @@ async function fetchStage(stageId: string): Promise<StageRow | null> {
   const supabase = getServiceClient();
   const { data, error } = await supabase
     .from("stage")
-    .select("id, name")
+    .select("id, name, location:location_id(name)")
     .eq("id", stageId)
     .maybeSingle();
   if (error) throw new Error(error.message);
-  return (data as StageRow | null) ?? null;
+  return (data as unknown as StageRow | null) ?? null;
 }
 
 async function fetchStageTags(stageId: string): Promise<TagRow[]> {
@@ -412,6 +413,10 @@ export default async function StagePage({
       </nav>
 
       <h1 className="text-2xl font-semibold mb-1">{stage.name}</h1>
+
+      {stage.location?.name && (
+        <p className="text-sm text-gray-600 mb-1">{stage.location.name}</p>
+      )}
 
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-2">
