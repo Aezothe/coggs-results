@@ -111,9 +111,6 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
                 {r.is_dnf ? "—" : (r.position ?? "")}
               </td>
               <td className="px-3 py-2 text-right tabular-nums">
-                {r.is_dnf ? "DNF" : formatTime(r.total_time_ms)}
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums">
                 {r.percentile != null
                   ? `${(r.percentile * 100).toFixed(1)}%`
                   : ""}
