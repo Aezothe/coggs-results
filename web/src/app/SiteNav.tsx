@@ -35,7 +35,7 @@ export function SiteNav() {
               onClick={() => setFeedbackOpen(true)}
               className="text-gray-600 hover:text-gray-900"
             >
-              Feedback
+              Feedback Form
             </button>
           </div>
         </div>
