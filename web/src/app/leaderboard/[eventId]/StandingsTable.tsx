@@ -563,41 +563,18 @@ export function StandingsTable({
             : "No results match the current course and class selection."}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-220px)]">
           <table className="min-w-full text-sm table-auto">
             <thead className="bg-gray-100">
               <tr>
-                <SortableHeader<SortKey>
-                  label="Pos"
-                  sortKey="position"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                  className="w-12"
-                />
-                <SortableHeader<SortKey>
-                  label="Name"
-                  sortKey="name"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                  className="sticky left-0 bg-gray-100 z-20"
-                />
-                <SortableHeader<SortKey>
-                  label="Course"
-                  sortKey="course_name"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                />
-                <SortableHeader<SortKey>
-                  label="Class"
-                  sortKey="class_name"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                />
-
+              <SortableHeader<SortKey>
+                label="Rider"
+                sortKey="name"
+                currentKey={sort.key}
+                currentDir={sort.dir}
+                onSort={onSort}
+                className="sticky left-0 bg-gray-100 z-20 min-w-[180px]"
+              />
                 {visibleStages.map((s) => {
                   const splits = showSplits
                     ? (splitsByStageId.get(s.stage_id) ?? [])
@@ -666,27 +643,27 @@ export function StandingsTable({
             <tbody className="divide-y">
               {sorted.map((row) => (
                 <tr key={row.entry_id} className="group hover:bg-gray-50">
-                  <td className="px-3 py-2 align-top">
-                    {row.is_dnf ? "—" : (row.position ?? "")}
+                  <td className="px-3 py-2 align-top sticky left-0 bg-white group-hover:bg-gray-50 z-10 min-w-[180px]">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-gray-500 tabular-nums text-xs w-6 shrink-0">
+                        {row.is_dnf ? "—" : (row.position ?? "")}
+                      </span>
+                      <div className="leading-tight">
+                        {row.person_id ? (
+                          <Link href = {`/person/${row.person_id}`}>
+                            {row.first_name} {row.last_name}
+                          </Link>
+                        ) : (
+                          <span className="text-gray-900">
+                            {row.first_name} {row.last_name}
+                          </span>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {[row.course_name, row.class_name].filter(Boolean).join(" · ")}
+                        </div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-3 py-2 align-top sticky left-0 bg-white group-hover:bg-gray-50 z-10">
-                    {row.person_id ? (
-                      <Link href={`/person/${row.person_id}`} className="text-gray-900 hover:underline">
-                        {row.first_name} {row.last_name}
-                      </Link>
-                    ) : (
-                      <>
-                        {row.first_name} {row.last_name}
-                      </>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    {row.course_name ?? ""}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    {row.class_name ?? ""}
-                  </td>
-
                   {visibleStages.map((s) => {
                     const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
                     const splits = showSplits
