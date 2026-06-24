@@ -565,7 +565,7 @@ export function StandingsTable({
       ) : (
         <div className="overflow-x-auto">
           <table className="min-w-full text-sm table-auto">
-            <thead className="bg-gray-100 sticky top-0">
+            <thead className="bg-gray-100">
               <tr>
                 <SortableHeader<SortKey>
                   label="Pos"
@@ -671,7 +671,7 @@ export function StandingsTable({
                   </td>
                   <td className="px-3 py-2 align-top sticky left-0 bg-white group-hover:bg-gray-50 z-10">
                     {row.person_id ? (
-                      <Link href={`/person/${row.person_id}`}>
+                      <Link href={`/person/${row.person_id}`} className="text-gray-900 hover:underline">
                         {row.first_name} {row.last_name}
                       </Link>
                     ) : (
