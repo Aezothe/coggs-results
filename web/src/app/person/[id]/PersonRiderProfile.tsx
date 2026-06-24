@@ -389,23 +389,39 @@ function buildSliderValues(
   );
   if (riderSliders.length === 0) return [];
 
-  // For each slider category, find the field range of (high - low)
-  const fieldDiffs = new Map<string, number[]>();
+  // For each slider category, compute the field's standard deviation of diffs
+  const fieldDiffsByCat = new Map<string, number[]>();
   for (const a of allSliders) {
     if (a.rides < MIN_RIDES_FOR_SLIDER) continue;
-    if (!fieldDiffs.has(a.category_id)) fieldDiffs.set(a.category_id, []);
-    fieldDiffs.get(a.category_id)!.push(a.high_score - a.low_score);
+    if (!fieldDiffsByCat.has(a.category_id)) {
+      fieldDiffsByCat.set(a.category_id, []);
+    }
+    fieldDiffsByCat.get(a.category_id)!.push(a.high_score - a.low_score);
   }
+
+  // How many stddevs to peg the slider at each end. 2 = clear visible spread,
+  // outliers pegged. 1.5 = even tighter typical spread.
+  const PEG_STDDEVS = 2;
 
   return riderSliders.map((t) => {
     const myDiff = t.high_score - t.low_score;
-    const fieldRange = fieldDiffs.get(t.category_id) ?? [];
-    const maxAbs = Math.max(
-      0.01,
-      ...fieldRange.map((d) => Math.abs(d)),
-    );
-    // Normalize: -maxAbs maps to 0, +maxAbs maps to 1, 0 maps to 0.5
-    const normalized = (myDiff + maxAbs) / (2 * maxAbs);
+    const fieldDiffs = fieldDiffsByCat.get(t.category_id) ?? [];
+
+    let stddev = 0.05; // fallback if field is too small for stats
+    if (fieldDiffs.length >= 2) {
+      const mean =
+        fieldDiffs.reduce((a, b) => a + b, 0) / fieldDiffs.length;
+      const variance =
+        fieldDiffs.reduce((s, d) => s + (d - mean) ** 2, 0) /
+        fieldDiffs.length;
+      stddev = Math.sqrt(variance);
+      if (stddev < 0.01) stddev = 0.01; // avoid divide-by-zero
+    }
+
+    // Map [-PEG_STDDEVS*stddev, +PEG_STDDEVS*stddev] to [0, 1]
+    const range = PEG_STDDEVS * stddev;
+    const normalized = (myDiff + range) / (2 * range);
+
     return {
       kind: "slider" as const,
       category_id: t.category_id,
