@@ -170,6 +170,8 @@ export default async function LeaderboardPage({
     class?: string;
     splits?: string;
     stages?: string;
+    riders?: string;     
+    compare?: string;    
   }>;
 }) {
   const { eventId } = await params;
@@ -214,7 +216,12 @@ export default async function LeaderboardPage({
     sp.stages && sp.stages.length > 0
       ? sp.stages.split(",").filter(Boolean)
       : [];
+  const initialSelectedRiderIds =
+    sp.riders && sp.riders.length > 0
+      ? sp.riders.split(",").filter(Boolean)
+      : [];
 
+  const initialCompareOnly = sp.compare === "1";
   return (
     <main className="p-6 max-w-6xl mx-auto">
       <nav className="mb-2 text-sm">
@@ -244,17 +251,19 @@ export default async function LeaderboardPage({
 
       {!errorMsg && (
         <StandingsTable
-          standings={standings}
-          stageTimes={stageTimes}
-          splitTimes={splitTimes}
-          courses={courses}
-          classes={classes}
-          initialCourse={initialCourse}
-          initialClass={initialClass}
-          initialShowSplits={initialShowSplits}
-          initialSelectedStageIds={initialSelectedStageIds}
-          eventId={eventId}
-        />
+        standings={standings}
+        stageTimes={stageTimes}
+        splitTimes={splitTimes}
+        courses={courses}
+        classes={classes}
+        initialCourse={initialCourse}
+        initialClass={initialClass}
+        initialShowSplits={initialShowSplits}
+        initialSelectedStageIds={initialSelectedStageIds}
+        initialSelectedRiderIds={initialSelectedRiderIds}     // new
+        initialCompareOnly={initialCompareOnly}               // new
+        eventId={eventId}
+      />
       )}
     </main>
   );
