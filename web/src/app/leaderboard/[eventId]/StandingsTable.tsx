@@ -581,6 +581,7 @@ export function StandingsTable({
                   currentKey={sort.key}
                   currentDir={sort.dir}
                   onSort={onSort}
+                  className="sticky left-0 bg-gray-100 z-20"
                 />
                 <SortableHeader<SortKey>
                   label="Course"
@@ -668,7 +669,7 @@ export function StandingsTable({
                   <td className="px-3 py-2 align-top">
                     {row.is_dnf ? "—" : (row.position ?? "")}
                   </td>
-                  <td className="px-3 py-2 align-top">
+                  <td className="px-3 py-2 align-top sticky left-0 bg-white z-10 group-hover:bg-gray-50">
                     {row.person_id ? (
                       <Link href={`/person/${row.person_id}`}>
                         {row.first_name} {row.last_name}
