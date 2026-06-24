@@ -71,58 +71,79 @@ export function PersonResultsSection({
     });
   }, [results, course, klass]);
 
+  const hasFilters = Boolean(course || klass);
+  const raceCount = results.length;
+  const summaryText = `${raceCount} race${raceCount === 1 ? "" : "s"}`;
+
   return (
-    <div>
-      <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
-        <label className="flex items-center gap-2">
-          <span className="text-gray-600">Course:</span>
-          <select
-            value={course}
-            onChange={(e) => onCourseChange(e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-          >
-            <option value="">All</option>
-            {courses.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+    <details className="mb-8 group">
+      <summary className="cursor-pointer select-none flex items-center justify-between py-2 border-b border-gray-200 list-none">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs transition-transform group-open:rotate-90">
+            ▶
+          </span>
+          <h2 className="text-lg font-medium text-gray-900">Race Results</h2>
+        </div>
+        <span className="text-sm text-gray-500">{summaryText}</span>
+      </summary>
 
-        <label className="flex items-center gap-2">
-          <span className="text-gray-600">Class:</span>
-          <select
-            value={klass}
-            onChange={(e) => onClassChange(e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-          >
-            <option value="">All</option>
-            {classes.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
+      <div className="pt-4">
+        <PercentileChart results={filtered} />
 
-        {(course || klass) && (
-          <button
-            type="button"
-            onClick={onClear}
-            className="text-blue-600 hover:underline"
-          >
-            Clear filters
-          </button>
-        )}
+        <div className="flex flex-wrap items-center gap-3 my-4 text-sm border-y border-gray-200 py-3 bg-gray-50 px-3 rounded">
+          <span className="text-xs uppercase tracking-wide text-gray-500 font-medium">
+            Filter
+          </span>
 
-        <span className="ml-auto text-gray-500">
-          {filtered.length} of {results.length}
-        </span>
+          <label className="flex items-center gap-2">
+            <span className="text-gray-600">Course:</span>
+            <select
+              value={course}
+              onChange={(e) => onCourseChange(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+            >
+              <option value="">All</option>
+              {courses.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2">
+            <span className="text-gray-600">Class:</span>
+            <select
+              value={klass}
+              onChange={(e) => onClassChange(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-sm bg-white"
+            >
+              <option value="">All</option>
+              {classes.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          {hasFilters && (
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-blue-600 hover:underline"
+            >
+              Clear filters
+            </button>
+          )}
+
+          <span className="ml-auto text-gray-500">
+            {filtered.length} of {results.length}
+          </span>
+        </div>
+
+        <PersonResultsTable results={filtered} />
       </div>
-
-      <PercentileChart results={filtered} />
-      <PersonResultsTable results={filtered} />
-    </div>
+    </details>
   );
 }

@@ -36,7 +36,6 @@ async function fetchStageRides(personId: string): Promise<StageRide[]> {
       "stage_id, stage_name, time_ms, stage_position_class, finishers_class",
     )
     .eq("person_id", personId);
-
   if (error) throw new Error(error.message);
   return (data ?? []) as StageRide[];
 }
@@ -63,9 +62,8 @@ function summarizeStages(
   rides: StageRide[],
   stageTags: StageTagJoin[],
 ): StageSummary[] {
-  // Build stage_id -> list of terrain tags (alpha sorted)
   const tagsByStage = new Map<string, StageTag[]>();
-  const seen = new Map<string, Set<string>>(); // dedupe per stage
+  const seen = new Map<string, Set<string>>();
   for (const row of stageTags) {
     if (!row.tag) continue;
     if (row.tag.category !== "terrain") continue;
@@ -83,15 +81,12 @@ function summarizeStages(
   }
 
   const byStage = new Map<string, { name: string; pcts: number[] }>();
-
   for (const r of rides) {
     if (r.time_ms == null) continue;
     if (r.stage_position_class == null) continue;
     if (r.finishers_class == null) continue;
-
     const pct = percentile(r.stage_position_class, r.finishers_class);
     if (pct == null) continue;
-
     if (!byStage.has(r.stage_id)) {
       byStage.set(r.stage_id, { name: r.stage_name, pcts: [] });
     }
@@ -110,7 +105,6 @@ function summarizeStages(
       tags: tagsByStage.get(stage_id) ?? [],
     });
   }
-
   return summaries;
 }
 
@@ -134,7 +128,7 @@ export async function PersonStagePerformance({
   if (errorMsg) {
     return (
       <section className="mt-10">
-        <h2 className="text-lg font-medium mb-3">Stage performance</h2>
+        <h2 className="text-lg font-medium mb-3">Stage Performance</h2>
         <p className="text-red-600 text-sm">Error: {errorMsg}</p>
       </section>
     );
@@ -145,7 +139,7 @@ export async function PersonStagePerformance({
   if (summaries.length === 0) {
     return (
       <section className="mt-10">
-        <h2 className="text-lg font-medium mb-3">Stage performance</h2>
+        <h2 className="text-lg font-medium mb-3">Stage Performance</h2>
         <p className="text-sm text-gray-500">
           No stage results yet for this rider.
         </p>
@@ -154,12 +148,27 @@ export async function PersonStagePerformance({
   }
 
   return (
-    <section className="mt-10">
-      <h2 className="text-lg font-medium mb-3">Stage performance</h2>
-      <p className="text-sm text-gray-500 mb-3">
-        Stages ranked by best finish percentile across all rides.
-      </p>
-      <PersonStagePerformanceTable summaries={summaries} />
-    </section>
+    <details className="mt-10 group" open>
+      <summary className="cursor-pointer select-none flex items-center justify-between py-2 border-b border-gray-200 list-none">
+        <div className="flex items-center gap-2">
+          <span className="text-gray-500 text-xs transition-transform group-open:rotate-90">
+            ▶
+          </span>
+          <h2 className="text-lg font-medium text-gray-900">
+            Stage Performance
+          </h2>
+        </div>
+        <span className="text-sm text-gray-500">
+          {summaries.length} stage{summaries.length === 1 ? "" : "s"}
+        </span>
+      </summary>
+
+      <div className="pt-4">
+        <p className="text-sm text-gray-500 mb-3">
+          Stages ranked by best finish percentile across all rides.
+        </p>
+        <PersonStagePerformanceTable summaries={summaries} />
+      </div>
+    </details>
   );
 }
