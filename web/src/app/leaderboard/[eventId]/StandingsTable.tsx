@@ -17,7 +17,6 @@ type SplitDef = {
 
 type SortKey =
   | "position"
-  | "name"
   | "course_name"
   | "class_name"
   | "total_time_ms"
@@ -358,11 +357,6 @@ export function StandingsTable({
       if (key === "position") {
         return row.is_dnf ? null : (row.position ?? null);
       }
-      if (key === "name") {
-        return `${row.last_name ?? ""} ${row.first_name ?? ""}`
-          .trim()
-          .toLowerCase();
-      }
       if (key === "course_name") return row.course_name ?? null;
       if (key === "class_name") return row.class_name ?? null;
       if (key === "total_time_ms") {
@@ -569,7 +563,7 @@ export function StandingsTable({
               <tr>
               <SortableHeader<SortKey>
                 label="Rider"
-                sortKey="name"
+                sortKey="position"
                 currentKey={sort.key}
                 currentDir={sort.dir}
                 onSort={onSort}

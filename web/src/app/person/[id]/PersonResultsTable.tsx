@@ -2,12 +2,11 @@
 
 import Link from "next/link";
 import { useCallback } from "react";
-import { formatTime } from "@/lib/format";
 import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
 import type { PersonResult } from "./page";
 
-type SortKey = "event_date" | "event_name" | "total_time_ms" | "percentile";
+type SortKey = "event_date" | "event_name" | "percentile";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "";
@@ -29,8 +28,6 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
         return row.event_date ?? null;
       case "event_name":
         return row.event_name ?? null;
-      case "total_time_ms":
-        return row.is_dnf ? null : (row.total_time_ms ?? null);
       case "percentile":
         return row.is_dnf ? null : (row.percentile ?? null);
     }
@@ -70,14 +67,6 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
               onSort={onSort}
             />
             <SortableHeader<SortKey>
-              label="Time"
-              sortKey="total_time_ms"
-              currentKey={sort.key}
-              currentDir={sort.dir}
-              onSort={onSort}
-              align="right"
-            />
-            <SortableHeader<SortKey>
               label="Percentile"
               sortKey="percentile"
               currentKey={sort.key}
@@ -107,9 +96,6 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
                     </div>
                   </div>
                 </div>
-              </td>
-              <td className="px-3 py-2 text-right tabular-nums align-top">
-                {r.is_dnf ? "DNF" : formatTime(r.total_time_ms)}
               </td>
               <td className="px-3 py-2 text-right tabular-nums align-top">
                 {r.percentile != null
