@@ -1,10 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
-import { PersonResultsTable } from "./PersonResultsTable";
-import { PercentileChart } from "./PercentileChart";
 import { PersonStagePerformance } from "./PersonStagePerformance";
 import { PersonRiderProfile } from "./PersonRiderProfile";
+import { PersonResultsSection } from "./PersonResultsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -113,19 +112,14 @@ export default async function PersonPage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <h1 className="text-2xl font-semibold mb-1">{displayName}</h1>
-      <p className="text-sm text-gray-500 mb-6"></p>
-        <PersonRiderProfile personId={id} />
-        {results.length > 0 && (
-            <>
-                <PercentileChart results={results} />
-                <PersonResultsTable results={results} />
-            </>
-            )}
 
-            <PersonStagePerformance personId={id} />
+      <PersonRiderProfile personId={id} />
+
+      {results.length > 0 && <PersonResultsSection results={results} />}
+
+      <PersonStagePerformance personId={id} />
 
       {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
-
       {!errorMsg && results.length === 0 && (
         <p className="text-gray-500">No results found for this person.</p>
       )}

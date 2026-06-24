@@ -7,14 +7,20 @@ import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
 import type { PersonResult } from "./page";
 
-type SortKey =
-  | "event_date"
-  | "event_name"
-  | "course_name"
-  | "class_name"
-  | "position"
-  | "total_time_ms"
-  | "percentile";
+type SortKey = "event_date" | "event_name" | "total_time_ms" | "percentile";
+
+function formatDate(iso: string | null): string {
+  if (!iso) return "";
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  const [year, month, day] = parts.map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
 
 export function PersonResultsTable({ results }: { results: PersonResult[] }) {
   const getValue = useCallback((row: PersonResult, key: SortKey) => {
@@ -23,12 +29,6 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
         return row.event_date ?? null;
       case "event_name":
         return row.event_name ?? null;
-      case "course_name":
-        return row.course_name ?? null;
-      case "class_name":
-        return row.class_name ?? null;
-      case "position":
-        return row.is_dnf ? null : (row.position ?? null);
       case "total_time_ms":
         return row.is_dnf ? null : (row.total_time_ms ?? null);
       case "percentile":
@@ -42,10 +42,18 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
     { key: "event_date", dir: "desc" },
   );
 
+  if (results.length === 0) {
+    return (
+      <p className="text-sm text-gray-500">
+        No results match the current filters.
+      </p>
+    );
+  }
+
   return (
     <div className="overflow-x-auto">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100 sticky top-0">
+        <thead className="bg-gray-100">
           <tr>
             <SortableHeader<SortKey>
               label="Date"
@@ -62,22 +70,8 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
               onSort={onSort}
             />
             <SortableHeader<SortKey>
-              label="Course"
-              sortKey="course_name"
-              currentKey={sort.key}
-              currentDir={sort.dir}
-              onSort={onSort}
-            />
-            <SortableHeader<SortKey>
-              label="Class"
-              sortKey="class_name"
-              currentKey={sort.key}
-              currentDir={sort.dir}
-              onSort={onSort}
-            />
-            <SortableHeader<SortKey>
-              label="Position"
-              sortKey="position"
+              label="Time"
+              sortKey="total_time_ms"
               currentKey={sort.key}
               currentDir={sort.dir}
               onSort={onSort}
@@ -95,22 +89,29 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
         </thead>
         <tbody className="divide-y">
           {sorted.map((r) => (
-            <tr
-              key={r.entry_id}
-              className="border-t border-gray-200 hover:bg-gray-50"
-            >
-              <td className="px-3 py-2 text-gray-600">{r.event_date ?? ""}</td>
-              <td className="px-3 py-2">
-                <Link href={`/leaderboard/${r.event_id}`}>
-                  {r.event_name ?? ""}
-                </Link>
+            <tr key={r.entry_id} className="hover:bg-gray-50">
+              <td className="px-3 py-2 text-gray-600 align-top whitespace-nowrap">
+                {formatDate(r.event_date)}
               </td>
-              <td className="px-3 py-2">{r.course_name ?? ""}</td>
-              <td className="px-3 py-2">{r.class_name ?? ""}</td>
-              <td className="px-3 py-2 text-right tabular-nums">
-                {r.is_dnf ? "—" : (r.position ?? "")}
+              <td className="px-3 py-2 align-top">
+                <div className="flex items-baseline gap-2">
+                  <span className="text-gray-500 tabular-nums text-xs w-6 shrink-0">
+                    {r.is_dnf ? "—" : (r.position ?? "")}
+                  </span>
+                  <div className="leading-tight">
+                    <Link href={`/leaderboard/${r.event_id}`} className="text-blue-500 hover:underline">
+                      {r.event_name ?? ""}
+                    </Link>
+                    <div className="text-xs text-gray-500">
+                      {[r.course_name, r.class_name].filter(Boolean).join(" · ")}
+                    </div>
+                  </div>
+                </div>
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="px-3 py-2 text-right tabular-nums align-top">
+                {r.is_dnf ? "DNF" : formatTime(r.total_time_ms)}
+              </td>
+              <td className="px-3 py-2 text-right tabular-nums align-top">
                 {r.percentile != null
                   ? `${(r.percentile * 100).toFixed(1)}%`
                   : ""}
