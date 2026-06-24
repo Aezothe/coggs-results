@@ -25,7 +25,7 @@ export function SortableHeader<K extends string>({
   return (
     <th
       onClick={() => onSort(sortKey)}
-      className={`cursor-pointer select-none px-3 py-2 ${
+      className={`cursor-pointer select-none px-3 py-2 sticky top-0 bg-gray-100 ${
         align === "right" ? "text-right" : "text-left"
       } ${isActive ? "text-gray-900" : "text-gray-700"} ${className}`}
     >

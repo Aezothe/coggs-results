@@ -25,7 +25,6 @@ type SortKey =
   | `stage:${string}`
   | `split:${string}`;
 
-// Choose class-scoped or course-scoped values based on whether a class is selected.
 function stagePositionFor(
   stage: StageTime | undefined,
   classSelected: boolean,
@@ -46,6 +45,10 @@ function splitPositionFor(
     : (split.split_position_course ?? null);
 }
 
+function displayName(row: StandingsRow): string {
+  return `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() || "Unnamed";
+}
+
 export function StandingsTable({
   standings,
   stageTimes,
@@ -56,6 +59,8 @@ export function StandingsTable({
   initialClass,
   initialShowSplits,
   initialSelectedStageIds,
+  initialSelectedRiderIds,
+  initialCompareOnly,
   eventId,
 }: {
   standings: StandingsRow[];
@@ -67,6 +72,8 @@ export function StandingsTable({
   initialClass: string;
   initialShowSplits: boolean;
   initialSelectedStageIds: string[];
+  initialSelectedRiderIds: string[];
+  initialCompareOnly: boolean;
   eventId: string;
 }) {
   const router = useRouter();
@@ -79,6 +86,13 @@ export function StandingsTable({
     initialSelectedStageIds.length > 0 ? initialSelectedStageIds : null,
   );
 
+  // Rider compare state
+  const [selectedRiderIds, setSelectedRiderIds] = useState<string[]>(
+    initialSelectedRiderIds,
+  );
+  const [compareOnly, setCompareOnly] = useState(initialCompareOnly);
+  const [riderQuery, setRiderQuery] = useState("");
+
   const classSelected = Boolean(klass);
 
   function updateUrl(opts: {
@@ -86,18 +100,24 @@ export function StandingsTable({
     nextClass?: string;
     nextShowSplits?: boolean;
     nextStageIds?: string[];
+    nextRiderIds?: string[];
+    nextCompareOnly?: boolean;
   }) {
     const nextCourse = opts.nextCourse ?? course;
     const nextClass = opts.nextClass ?? klass;
     const nextShowSplits = opts.nextShowSplits ?? showSplits;
     const nextStageIds =
       opts.nextStageIds ?? (selectedStageIds === null ? [] : selectedStageIds);
+    const nextRiderIds = opts.nextRiderIds ?? selectedRiderIds;
+    const nextCompareOnly = opts.nextCompareOnly ?? compareOnly;
 
     const sp = new URLSearchParams();
     if (nextCourse) sp.set("course", nextCourse);
     if (nextClass) sp.set("class", nextClass);
     if (nextShowSplits) sp.set("splits", "1");
     if (nextStageIds.length > 0) sp.set("stages", nextStageIds.join(","));
+    if (nextRiderIds.length > 0) sp.set("riders", nextRiderIds.join(","));
+    if (nextCompareOnly && nextRiderIds.length > 0) sp.set("compare", "1");
 
     startTransition(() => {
       const qs = sp.toString();
@@ -112,12 +132,26 @@ export function StandingsTable({
     setCourse(v);
     setKlass("");
     setSelectedStageIds(null);
-    updateUrl({ nextCourse: v, nextClass: "", nextStageIds: [] });
+    setSelectedRiderIds([]);
+    setCompareOnly(false);
+    updateUrl({
+      nextCourse: v,
+      nextClass: "",
+      nextStageIds: [],
+      nextRiderIds: [],
+      nextCompareOnly: false,
+    });
   }
 
   function onClassChange(v: string) {
     setKlass(v);
-    updateUrl({ nextClass: v });
+    setSelectedRiderIds([]);
+    setCompareOnly(false);
+    updateUrl({
+      nextClass: v,
+      nextRiderIds: [],
+      nextCompareOnly: false,
+    });
   }
 
   function onToggleSplits() {
@@ -147,6 +181,40 @@ export function StandingsTable({
     updateUrl({ nextStageIds: [] });
   }
 
+  function onAddRider(entryId: string) {
+    if (selectedRiderIds.includes(entryId)) return;
+    const next = [...selectedRiderIds, entryId];
+    setSelectedRiderIds(next);
+    setRiderQuery("");
+    updateUrl({ nextRiderIds: next });
+  }
+
+  function onRemoveRider(entryId: string) {
+    const next = selectedRiderIds.filter((id) => id !== entryId);
+    setSelectedRiderIds(next);
+    const stillCompareOnly = compareOnly && next.length > 0;
+    if (compareOnly && !stillCompareOnly) {
+      setCompareOnly(false);
+    }
+    updateUrl({
+      nextRiderIds: next,
+      nextCompareOnly: stillCompareOnly,
+    });
+  }
+
+  function onClearRiders() {
+    setSelectedRiderIds([]);
+    setCompareOnly(false);
+    updateUrl({ nextRiderIds: [], nextCompareOnly: false });
+  }
+
+  function onToggleCompareOnly() {
+    if (selectedRiderIds.length === 0) return;
+    const next = !compareOnly;
+    setCompareOnly(next);
+    updateUrl({ nextCompareOnly: next });
+  }
+
   const displayScope = klass ? "class" : "overall";
 
   const visibleClasses = useMemo(() => {
@@ -159,7 +227,8 @@ export function StandingsTable({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [course, standings]);
 
-  const filtered = useMemo(() => {
+  // Riders in the current course/scope (compare candidates)
+  const scopedRiders = useMemo(() => {
     return standings.filter((r) => {
       if (r.course_name !== course) return false;
       if (r.scope_type !== displayScope) return false;
@@ -167,6 +236,51 @@ export function StandingsTable({
       return true;
     });
   }, [standings, course, displayScope, klass]);
+
+  // For chip display & search dropdown, build entry_id → row map
+  const ridersById = useMemo(() => {
+    const map = new Map<string, StandingsRow>();
+    for (const r of scopedRiders) map.set(r.entry_id, r);
+    return map;
+  }, [scopedRiders]);
+
+  // Search dropdown matches: case-insensitive, not-already-selected,
+  // capped at 8 results
+  const riderMatches = useMemo(() => {
+    const q = riderQuery.trim().toLowerCase();
+    if (!q) return [];
+    const selectedSet = new Set(selectedRiderIds);
+    const matches: StandingsRow[] = [];
+    for (const r of scopedRiders) {
+      if (selectedSet.has(r.entry_id)) continue;
+      if (displayName(r).toLowerCase().includes(q)) {
+        matches.push(r);
+        if (matches.length >= 8) break;
+      }
+    }
+    return matches;
+  }, [riderQuery, scopedRiders, selectedRiderIds]);
+
+  // The filtered (compare-only) set when active
+  const filtered = useMemo(() => {
+    const base = compareOnly && selectedRiderIds.length > 0
+      ? scopedRiders.filter((r) => selectedRiderIds.includes(r.entry_id))
+      : scopedRiders;
+
+    return [...base].sort((a, b) => {
+      const ad = !!a.is_dnf;
+      const bd = !!b.is_dnf;
+      if (ad !== bd) return ad ? 1 : -1;
+
+      const ap = a.position ?? Number.MAX_SAFE_INTEGER;
+      const bp = b.position ?? Number.MAX_SAFE_INTEGER;
+      if (ap !== bp) return ap - bp;
+
+      const al = (a.last_name ?? "").localeCompare(b.last_name ?? "");
+      if (al !== 0) return al;
+      return (a.first_name ?? "").localeCompare(b.first_name ?? "");
+    });
+  }, [scopedRiders, compareOnly, selectedRiderIds]);
 
   const stageMap = useMemo(() => {
     const map = new Map<string, Map<string, StageTime>>();
@@ -278,6 +392,8 @@ export function StandingsTable({
     { key: "position", dir: "asc" },
   );
 
+  const totalInCourse = standings.filter((r) => r.course_name === course).length;
+
   return (
     <div>
       <div className="flex flex-wrap gap-3 mb-3 items-center">
@@ -322,9 +438,90 @@ export function StandingsTable({
         </label>
 
         <span className="ml-auto text-sm text-gray-500 self-center">
-          {sorted.length} of{" "}
-          {standings.filter((r) => r.course_name === course).length}
+          {compareOnly && selectedRiderIds.length > 0
+            ? `Comparing ${sorted.length} of ${totalInCourse}`
+            : `${sorted.length} of ${totalInCourse}`}
         </span>
+      </div>
+
+      {/* Compare riders */}
+      <div className="mb-4 text-sm">
+        <div className="relative max-w-md">
+          <input
+            type="search"
+            placeholder="Compare riders — type a name to add"
+            value={riderQuery}
+            onChange={(e) => setRiderQuery(e.target.value)}
+            className="border border-gray-300 rounded px-3 py-1.5 w-full text-sm"
+          />
+          {riderMatches.length > 0 && (
+            <ul className="absolute left-0 right-0 top-full mt-1 z-10 border border-gray-200 bg-white rounded shadow-md max-h-72 overflow-y-auto">
+              {riderMatches.map((r) => (
+                <li key={r.entry_id}>
+                  <button
+                    type="button"
+                    onClick={() => onAddRider(r.entry_id)}
+                    className="block w-full text-left px-3 py-1.5 hover:bg-gray-50"
+                  >
+                    <span className="text-gray-900">{displayName(r)}</span>
+                    {r.class_name && (
+                      <span className="text-gray-500 ml-2 text-xs">
+                        {r.class_name}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        {selectedRiderIds.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mt-2">
+            {selectedRiderIds.map((entryId) => {
+              const row = ridersById.get(entryId);
+              if (!row) return null;
+              return (
+                <span
+                  key={entryId}
+                  className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 text-xs px-2 py-0.5 rounded"
+                >
+                  {displayName(row)}
+                  <button
+                    type="button"
+                    aria-label={`Remove ${displayName(row)}`}
+                    onClick={() => onRemoveRider(entryId)}
+                    className="text-gray-500 hover:text-gray-800 leading-none ml-0.5"
+                  >
+                    ×
+                  </button>
+                </span>
+              );
+            })}
+
+            <button
+              type="button"
+              onClick={onToggleCompareOnly}
+              className={`text-xs px-2 py-0.5 rounded border ${
+                compareOnly
+                  ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+              }`}
+            >
+              {compareOnly
+                ? "Showing selected only"
+                : `Show only selected (${selectedRiderIds.length})`}
+            </button>
+
+            <button
+              type="button"
+              onClick={onClearRiders}
+              className="text-xs text-blue-600 hover:underline"
+            >
+              Clear
+            </button>
+          </div>
+        )}
       </div>
 
       {stageList.length > 0 && (
@@ -361,43 +558,23 @@ export function StandingsTable({
 
       {sorted.length === 0 ? (
         <p className="text-gray-500">
-          No results match the current course and class selection.
+          {compareOnly && selectedRiderIds.length > 0
+            ? "No selected riders are in the current course/class filter."
+            : "No results match the current course and class selection."}
         </p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-220px)]">
           <table className="min-w-full text-sm table-auto">
-            <thead className="bg-gray-100 sticky top-0">
+            <thead className="bg-gray-100">
               <tr>
-                <SortableHeader<SortKey>
-                  label="Pos"
-                  sortKey="position"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                  className="w-12"
-                />
-                <SortableHeader<SortKey>
-                  label="Name"
-                  sortKey="name"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                />
-                <SortableHeader<SortKey>
-                  label="Course"
-                  sortKey="course_name"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                />
-                <SortableHeader<SortKey>
-                  label="Class"
-                  sortKey="class_name"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                />
-
+              <SortableHeader<SortKey>
+                label="Rider"
+                sortKey="name"
+                currentKey={sort.key}
+                currentDir={sort.dir}
+                onSort={onSort}
+                className="sticky left-0 bg-gray-100 z-20 min-w-[180px]"
+              />
                 {visibleStages.map((s) => {
                   const splits = showSplits
                     ? (splitsByStageId.get(s.stage_id) ?? [])
@@ -465,28 +642,28 @@ export function StandingsTable({
 
             <tbody className="divide-y">
               {sorted.map((row) => (
-                <tr key={row.entry_id} className="hover:bg-gray-50">
-                  <td className="px-3 py-2 align-top">
-                    {row.is_dnf ? "—" : (row.position ?? "")}
+                <tr key={row.entry_id} className="group hover:bg-gray-50">
+                  <td className="px-3 py-2 align-top sticky left-0 bg-white group-hover:bg-gray-50 z-10 min-w-[180px]">
+                    <div className="flex items-baseline gap-2">
+                      <span className="text-gray-500 tabular-nums text-xs w-6 shrink-0">
+                        {row.is_dnf ? "—" : (row.position ?? "")}
+                      </span>
+                      <div className="leading-tight">
+                        {row.person_id ? (
+                          <Link href = {`/person/${row.person_id}`}>
+                            {row.first_name} {row.last_name}
+                          </Link>
+                        ) : (
+                          <span className="text-gray-900">
+                            {row.first_name} {row.last_name}
+                          </span>
+                        )}
+                        <div className="text-xs text-gray-500">
+                          {[row.course_name, row.class_name].filter(Boolean).join(" · ")}
+                        </div>
+                      </div>
+                    </div>
                   </td>
-                  <td className="px-3 py-2 align-top">
-                    {row.person_id ? (
-                      <Link href={`/person/${row.person_id}`}>
-                        {row.first_name} {row.last_name}
-                      </Link>
-                    ) : (
-                      <>
-                        {row.first_name} {row.last_name}
-                      </>
-                    )}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    {row.course_name ?? ""}
-                  </td>
-                  <td className="px-3 py-2 align-top">
-                    {row.class_name ?? ""}
-                  </td>
-
                   {visibleStages.map((s) => {
                     const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
                     const splits = showSplits
