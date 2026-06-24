@@ -84,14 +84,6 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
               align="right"
             />
             <SortableHeader<SortKey>
-              label="Time"
-              sortKey="total_time_ms"
-              currentKey={sort.key}
-              currentDir={sort.dir}
-              onSort={onSort}
-              align="right"
-            />
-            <SortableHeader<SortKey>
               label="Percentile"
               sortKey="percentile"
               currentKey={sort.key}
