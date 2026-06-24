@@ -665,11 +665,11 @@ export function StandingsTable({
 
             <tbody className="divide-y">
               {sorted.map((row) => (
-                <tr key={row.entry_id} className="hover:bg-gray-50">
+                <tr key={row.entry_id} className="group hover:bg-gray-50">
                   <td className="px-3 py-2 align-top">
                     {row.is_dnf ? "—" : (row.position ?? "")}
                   </td>
-                  <td className="px-3 py-2 align-top sticky left-0 bg-white z-10 group-hover:bg-gray-50">
+                  <td className="px-3 py-2 align-top sticky left-0 bg-white group-hover:bg-gray-50 z-10">
                     {row.person_id ? (
                       <Link href={`/person/${row.person_id}`}>
                         {row.first_name} {row.last_name}
