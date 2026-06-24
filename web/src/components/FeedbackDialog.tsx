@@ -91,7 +91,7 @@ export function FeedbackDialog({
   return (
     <dialog
       ref={dialogRef}
-      className="rounded-lg p-0 backdrop:bg-black/40 max-w-md w-[90vw]"
+      className="rounded-lg p-0 backdrop:bg-black/40 max-w-md w-[90vw] m-auto top-[40%] -translate-y-1/2"
       onClick={(e) => {
         // Close if the user clicks the backdrop
         if (e.target === dialogRef.current) onClose();

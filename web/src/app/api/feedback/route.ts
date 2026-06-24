@@ -3,7 +3,7 @@ import crypto from "crypto";
 import { getServiceClient } from "@/lib/supabase/server";
 
 const rateLimitMap = new Map<string, number>();
-const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_WINDOW_MS = 2_000;
 const MIN_FORM_DURATION_MS = 2_000;
 const MAX_MESSAGE_LENGTH = 5000;
 const ALLOWED_TYPES = ["Feedback", "Bug report", "Feature request"] as const;
