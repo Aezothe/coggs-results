@@ -1,6 +1,56 @@
 import { getServiceClient } from "@/lib/supabase/server";
 
-// Minimum rides on a category for itfinishers - 1);// Minimum rides on a category for it to count.
+// Minimum rides on a category for it to count.
+const MIN_RIDES = 3;
+
+// Composite weights — what portion of the bar reflects field position
+// vs. the rider's own relative pattern.
+const FIELD_WEIGHT = 0.6;
+const PERSONAL_WEIGHT = 0.4;
+
+type StageRide = {
+  person_id: string;
+  stage_id: string;
+  stage_position_class: number | null;
+  finishers_class: number | null;
+  time_ms: number | null;
+};
+
+type StageTagRow = {
+  stage_id: string;
+  tag_id: string;
+};
+
+type TagCategoryRow = {
+  tag_id: string;
+  category_id: string;
+};
+
+type CategoryRow = {
+  id: string;
+  name: string;
+  display_order: number | null;
+};
+
+type CategoryPerRider = {
+  person_id: string;
+  category_id: string;
+  category_name: string;
+  display_order: number;
+  avg_percentile: number;
+  rides: number;
+};
+
+type RiderCategoryBar = {
+  category_id: string;
+  category_name: string;
+  display_order: number;
+  bar_value: number;
+};
+
+function percentile(position: number, finishers: number): number {
+  if (finishers < 2) return 1.0;
+  return (finishers - position) / (finishers - 1);
 }
 
 async function fetchAllData(): Promise<{
@@ -13,7 +63,6 @@ async function fetchAllData(): Promise<{
 }> {
   const supabase = getServiceClient();
 
-  // All stage rides
   const pageSize = 1000;
   const rides: StageRide[] = [];
   let offset = 0;
@@ -31,7 +80,6 @@ async function fetchAllData(): Promise<{
     offset += pageSize;
   }
 
-  // Categories
   const { data: catData, error: catErr } = await supabase
     .from("category")
     .select("id, name, display_order")
@@ -40,7 +88,6 @@ async function fetchAllData(): Promise<{
   if (catErr) throw new Error(catErr.message);
   const categories = (catData ?? []) as CategoryRow[];
 
-  // Tag -> categories
   const { data: tcData, error: tcErr } = await supabase
     .from("tag_category")
     .select("tag_id, category_id");
@@ -51,13 +98,11 @@ async function fetchAllData(): Promise<{
     tagToCategories.get(row.tag_id)!.push(row.category_id);
   }
 
-  // Stage -> tags
   const { data: stData, error: stErr } = await supabase
     .from("stage_tag")
     .select("stage_id, tag_id");
   if (stErr) throw new Error(stErr.message);
 
-  // Stage -> categories (via tags), deduped
   const categoryById = new Map<
     string,
     { id: string; name: string; display_order: number }
@@ -100,13 +145,9 @@ function buildCategoryAggregations(
     { id: string; name: string; display_order: number }[]
   >,
 ): CategoryPerRider[] {
-  // person_id -> category_id -> { name, display_order, pcts[] }
   const acc = new Map<
     string,
-    Map<
-      string,
-      { name: string; display_order: number; pcts: number[] }
-    >
+    Map<string, { name: string; display_order: number; pcts: number[] }>
   >();
 
   for (const r of rides) {
@@ -162,7 +203,6 @@ function buildBarValues(
   );
   if (riderCats.length === 0) return [];
 
-  // Field signal: rank the rider's avg within the field for each category
   const fieldByCat = new Map<string, number[]>();
   for (const a of allAggregations) {
     if (a.rides < MIN_RIDES) continue;
@@ -184,7 +224,6 @@ function buildBarValues(
     return below / (arr.length - 1);
   }
 
-  // Personal signal: this rider's tag spread, min-max normalized
   const riderValues = riderCats.map((t) => t.avg_percentile);
   const riderMin = Math.min(...riderValues);
   const riderMax = Math.max(...riderValues);
@@ -206,7 +245,6 @@ function buildBarValues(
     };
   });
 
-  // Sort by display_order so categories always appear in the same order
   bars.sort((a, b) => a.display_order - b.display_order);
 
   return bars;
@@ -224,13 +262,7 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function CategoryBarRow({
-  name,
-  value,
-}: {
-  name: string;
-  value: number;
-}) {
+function CategoryBarRow({ name, value }: { name: string; value: number }) {
   return (
     <div className="grid grid-cols-[100px_1fr] items-center gap-3 mb-2">
       <div className="text-sm text-gray-700 truncate">{name}</div>
@@ -281,52 +313,3 @@ export async function PersonRiderProfile({
     </section>
   );
 }
-const MIN_RIDES = 3;
-
-// Composite weights — what portion of the bar reflects field position
-// vs. the rider's own relative pattern.
-const FIELD_WEIGHT = 0.6;
-const PERSONAL_WEIGHT = 0.4;
-
-type StageRide = {
-  person_id: string;
-  stage_id: string;
-  stage_position_class: number | null;
-  finishers_class: number | null;
-  time_ms: number | null;
-};
-
-type StageTagRow = {
-  stage_id: string;
-  tag_id: string;
-};
-
-type TagCategoryRow = {
-  tag_id: string;
-  category_id: string;
-};
-
-type CategoryRow = {
-  id: string;
-  name: string;
-  display_order: number | null;
-};
-
-type CategoryPerRider = {
-  person_id: string;
-  category_id: string;
-  category_name: string;
-  display_order: number;
-  avg_percentile: number;
-  rides: number;
-};
-
-type RiderCategoryBar = {
-  category_id: string;
-  category_name: string;
-  display_order: number;
-  bar_value: number; // 0..1
-};
-
-function percentile(position: number, finishers: number): number {
-  if (finishers < 2) return 1.0;
