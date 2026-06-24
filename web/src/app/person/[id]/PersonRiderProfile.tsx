@@ -1,17 +1,11 @@
 import { getServiceClient } from "@/lib/supabase/server";
 
-const MIN_RIDES = 3;
+const MIN_RIDES_FOR_BAR = 3;
+const MIN_RIDES_FOR_SLIDER = 6;
+const MIN_STAGE_FINISHERS = 3;
 
-// Standard categories use the field/personal hybrid.
 const FIELD_WEIGHT = 0.6;
 const PERSONAL_WEIGHT = 0.4;
-
-// Categories that are entirely length-derived. These bypass tag mappings.
-const ENDURANCE_NAME = "Endurance";
-const POWER_NAME = "Power";
-
-// Minimum number of finishers on a stage for its winning time to be reliable.
-const MIN_STAGE_FINISHERS = 3;
 
 type StageRide = {
   person_id: string;
@@ -35,24 +29,51 @@ type CategoryRow = {
   id: string;
   name: string;
   display_order: number | null;
+  rendering: "bar" | "slider";
+  slider_low_label: string | null;
+  slider_high_label: string | null;
 };
 
-type CategoryPerRider = {
+type RiderBarValue = {
+  kind: "bar";
+  category_id: string;
+  category_name: string;
+  display_order: number;
+  value: number;
+};
+
+type RiderSliderValue = {
+  kind: "slider";
+  category_id: string;
+  category_name: string;
+  display_order: number;
+  low_label: string;
+  high_label: string;
+  position: number; // 0..1, 0=fully low, 0.5=center, 1=fully high
+};
+
+type RiderProfileEntry = RiderBarValue | RiderSliderValue;
+
+type BarAggregation = {
   person_id: string;
   category_id: string;
   category_name: string;
   display_order: number;
-  // For tag-driven categories: simple average.
-  // For length-derived categories: weighted aggregate (numerator stored here).
   avg_percentile: number;
   rides: number;
 };
 
-type RiderCategoryBar = {
+type SliderAggregation = {
+  person_id: string;
   category_id: string;
   category_name: string;
   display_order: number;
-  bar_value: number;
+  low_label: string;
+  high_label: string;
+  // Internal scores used to derive position
+  low_score: number; // weighted avg favoring short stages
+  high_score: number; // weighted avg favoring long stages
+  rides: number;
 };
 
 function percentile(position: number, finishers: number): number {
@@ -71,7 +92,6 @@ async function fetchAllData(): Promise<{
 }> {
   const supabase = getServiceClient();
 
-  // All stage rides
   const pageSize = 1000;
   const rides: StageRide[] = [];
   let offset = 0;
@@ -89,16 +109,16 @@ async function fetchAllData(): Promise<{
     offset += pageSize;
   }
 
-  // Categories
   const { data: catData, error: catErr } = await supabase
     .from("category")
-    .select("id, name, display_order")
+    .select(
+      "id, name, display_order, rendering, slider_low_label, slider_high_label",
+    )
     .eq("category_type", "terrain")
     .order("display_order", { ascending: true });
   if (catErr) throw new Error(catErr.message);
   const categories = (catData ?? []) as CategoryRow[];
 
-  // Tag -> categories
   const { data: tcData, error: tcErr } = await supabase
     .from("tag_category")
     .select("tag_id, category_id");
@@ -109,18 +129,17 @@ async function fetchAllData(): Promise<{
     tagToCategories.get(row.tag_id)!.push(row.category_id);
   }
 
-  // Stage -> tags
   const { data: stData, error: stErr } = await supabase
     .from("stage_tag")
     .select("stage_id, tag_id");
   if (stErr) throw new Error(stErr.message);
 
-  // Stage -> categories (deduped)
   const categoryById = new Map<
     string,
     { id: string; name: string; display_order: number }
   >();
   for (const c of categories) {
+    if (c.rendering !== "bar") continue; // only tag-driven categories
     categoryById.set(c.id, {
       id: c.id,
       name: c.name,
@@ -148,8 +167,7 @@ async function fetchAllData(): Promise<{
     }
   }
 
-  // ---- Stage length: derived from winning time per stage ----
-  // For each stage, the minimum finishing time across all rides is the winning time.
+  // Stage length: winning time per stage with enough finishers
   const stageWinningTime = new Map<string, number>();
   const stageFinisherCount = new Map<string, number>();
   for (const r of rides) {
@@ -164,7 +182,6 @@ async function fetchAllData(): Promise<{
     }
   }
 
-  // Filter to stages with enough finishers for a stable winning time
   const usableStageLengths: { stage_id: string; winning_time: number }[] = [];
   for (const [stage_id, winning_time] of stageWinningTime.entries()) {
     if ((stageFinisherCount.get(stage_id) ?? 0) >= MIN_STAGE_FINISHERS) {
@@ -172,7 +189,6 @@ async function fetchAllData(): Promise<{
     }
   }
 
-  // Sort by winning time ascending and assign 0..1 length percentile
   usableStageLengths.sort((a, b) => a.winning_time - b.winning_time);
   const stageLengthRank = new Map<string, number>();
   const n = usableStageLengths.length;
@@ -184,15 +200,10 @@ async function fetchAllData(): Promise<{
     });
   }
 
-  return {
-    rides,
-    categoriesByStage,
-    categories,
-    stageLengthRank,
-  };
+  return { rides, categoriesByStage, categories, stageLengthRank };
 }
 
-function buildCategoryAggregations(
+function buildAggregations(
   rides: StageRide[],
   categoriesByStage: Map<
     string,
@@ -200,23 +211,32 @@ function buildCategoryAggregations(
   >,
   categories: CategoryRow[],
   stageLengthRank: Map<string, number>,
-): CategoryPerRider[] {
-  const enduranceCat = categories.find((c) => c.name === ENDURANCE_NAME);
-  const powerCat = categories.find((c) => c.name === POWER_NAME);
+): { bars: BarAggregation[]; sliders: SliderAggregation[] } {
+  const sliderCats = categories.filter((c) => c.rendering === "slider");
 
-  // For tag-driven categories: person_id -> category_id -> { name, display_order, pcts[] }
-  const tagAcc = new Map<
+  // Tag-driven bar accumulator
+  const barAcc = new Map<
     string,
     Map<string, { name: string; display_order: number; pcts: number[] }>
   >();
 
-  // For length-derived categories: person_id -> { endurance: { sum, weightSum, rides }, power: { ... } }
-  const lengthAcc = new Map<
+  // Slider accumulator (per rider, per slider category)
+  const sliderAcc = new Map<
     string,
-    {
-      endurance: { weighted_sum: number; weight_sum: number; rides: number };
-      power: { weighted_sum: number; weight_sum: number; rides: number };
-    }
+    Map<
+      string,
+      {
+        name: string;
+        display_order: number;
+        low_label: string;
+        high_label: string;
+        weighted_sum_low: number;
+        weight_sum_low: number;
+        weighted_sum_high: number;
+        weight_sum_high: number;
+        rides: number;
+      }
+    >
   >();
 
   for (const r of rides) {
@@ -226,14 +246,12 @@ function buildCategoryAggregations(
 
     const pct = percentile(r.stage_position_class, r.finishers_class);
 
-    // --- Tag-driven contribution ---
+    // Tag-driven contribution
     const cats = categoriesByStage.get(r.stage_id) ?? [];
     if (cats.length > 0) {
-      if (!tagAcc.has(r.person_id)) tagAcc.set(r.person_id, new Map());
-      const inner = tagAcc.get(r.person_id)!;
+      if (!barAcc.has(r.person_id)) barAcc.set(r.person_id, new Map());
+      const inner = barAcc.get(r.person_id)!;
       for (const c of cats) {
-        // Skip Endurance/Power even if they got tagged somehow — they're length-derived only
-        if (c.name === ENDURANCE_NAME || c.name === POWER_NAME) continue;
         if (!inner.has(c.id)) {
           inner.set(c.id, {
             name: c.name,
@@ -245,38 +263,42 @@ function buildCategoryAggregations(
       }
     }
 
-    // --- Length-derived contribution ---
+    // Slider contribution (based on stage length)
     const lengthRank = stageLengthRank.get(r.stage_id);
     if (lengthRank !== undefined) {
-      if (!lengthAcc.has(r.person_id)) {
-        lengthAcc.set(r.person_id, {
-          endurance: { weighted_sum: 0, weight_sum: 0, rides: 0 },
-          power: { weighted_sum: 0, weight_sum: 0, rides: 0 },
-        });
+      if (!sliderAcc.has(r.person_id)) sliderAcc.set(r.person_id, new Map());
+      const inner = sliderAcc.get(r.person_id)!;
+      for (const sc of sliderCats) {
+        if (!inner.has(sc.id)) {
+          inner.set(sc.id, {
+            name: sc.name,
+            display_order: sc.display_order ?? 0,
+            low_label: sc.slider_low_label ?? "Low",
+            high_label: sc.slider_high_label ?? "High",
+            weighted_sum_low: 0,
+            weight_sum_low: 0,
+            weighted_sum_high: 0,
+            weight_sum_high: 0,
+            rides: 0,
+          });
+        }
+        const slot = inner.get(sc.id)!;
+        // High = endurance = longer stages weigh more
+        slot.weighted_sum_high += pct * lengthRank;
+        slot.weight_sum_high += lengthRank;
+        // Low = power = shorter stages weigh more
+        slot.weighted_sum_low += pct * (1 - lengthRank);
+        slot.weight_sum_low += 1 - lengthRank;
+        slot.rides += 1;
       }
-      const slot = lengthAcc.get(r.person_id)!;
-
-      // Endurance weight = length rank (long stages weigh more)
-      const enduranceWeight = lengthRank;
-      slot.endurance.weighted_sum += pct * enduranceWeight;
-      slot.endurance.weight_sum += enduranceWeight;
-      slot.endurance.rides += 1;
-
-      // Power weight = 1 - length rank (short stages weigh more)
-      const powerWeight = 1 - lengthRank;
-      slot.power.weighted_sum += pct * powerWeight;
-      slot.power.weight_sum += powerWeight;
-      slot.power.rides += 1;
     }
   }
 
-  const out: CategoryPerRider[] = [];
-
-  // Emit tag-driven category rows
-  for (const [person_id, catMap] of tagAcc.entries()) {
+  const bars: BarAggregation[] = [];
+  for (const [person_id, catMap] of barAcc.entries()) {
     for (const [category_id, slot] of catMap.entries()) {
       if (slot.pcts.length === 0) continue;
-      out.push({
+      bars.push({
         person_id,
         category_id,
         category_name: slot.name,
@@ -288,51 +310,43 @@ function buildCategoryAggregations(
     }
   }
 
-  // Emit length-derived category rows
-  for (const [person_id, slot] of lengthAcc.entries()) {
-    if (enduranceCat && slot.endurance.weight_sum > 0) {
-      out.push({
+  const sliders: SliderAggregation[] = [];
+  for (const [person_id, catMap] of sliderAcc.entries()) {
+    for (const [category_id, slot] of catMap.entries()) {
+      if (slot.weight_sum_low === 0 || slot.weight_sum_high === 0) continue;
+      sliders.push({
         person_id,
-        category_id: enduranceCat.id,
-        category_name: enduranceCat.name,
-        display_order: enduranceCat.display_order ?? 0,
-        avg_percentile: slot.endurance.weighted_sum / slot.endurance.weight_sum,
-        rides: slot.endurance.rides,
-      });
-    }
-    if (powerCat && slot.power.weight_sum > 0) {
-      out.push({
-        person_id,
-        category_id: powerCat.id,
-        category_name: powerCat.name,
-        display_order: powerCat.display_order ?? 0,
-        avg_percentile: slot.power.weighted_sum / slot.power.weight_sum,
-        rides: slot.power.rides,
+        category_id,
+        category_name: slot.name,
+        display_order: slot.display_order,
+        low_label: slot.low_label,
+        high_label: slot.high_label,
+        low_score: slot.weighted_sum_low / slot.weight_sum_low,
+        high_score: slot.weighted_sum_high / slot.weight_sum_high,
+        rides: slot.rides,
       });
     }
   }
 
-  return out;
+  return { bars, sliders };
 }
 
 function buildBarValues(
-  allAggregations: CategoryPerRider[],
+  allBars: BarAggregation[],
   personId: string,
-): RiderCategoryBar[] {
-  const riderCats = allAggregations.filter(
-    (a) => a.person_id === personId && a.rides >= MIN_RIDES,
+): RiderBarValue[] {
+  const riderBars = allBars.filter(
+    (a) => a.person_id === personId && a.rides >= MIN_RIDES_FOR_BAR,
   );
-  if (riderCats.length === 0) return [];
+  if (riderBars.length === 0) return [];
 
   const fieldByCat = new Map<string, number[]>();
-  for (const a of allAggregations) {
-    if (a.rides < MIN_RIDES) continue;
+  for (const a of allBars) {
+    if (a.rides < MIN_RIDES_FOR_BAR) continue;
     if (!fieldByCat.has(a.category_id)) fieldByCat.set(a.category_id, []);
     fieldByCat.get(a.category_id)!.push(a.avg_percentile);
   }
-  for (const arr of fieldByCat.values()) {
-    arr.sort((a, b) => a - b);
-  }
+  for (const arr of fieldByCat.values()) arr.sort((a, b) => a - b);
 
   function fieldRank(category_id: string, value: number): number {
     const arr = fieldByCat.get(category_id);
@@ -345,9 +359,9 @@ function buildBarValues(
     return below / (arr.length - 1);
   }
 
-  const riderValues = riderCats.map((t) => t.avg_percentile);
-  const riderMin = Math.min(...riderValues);
-  const riderMax = Math.max(...riderValues);
+  const riderVals = riderBars.map((t) => t.avg_percentile);
+  const riderMin = Math.min(...riderVals);
+  const riderMax = Math.max(...riderVals);
   const riderSpread = riderMax - riderMin;
 
   function personalRank(value: number): number {
@@ -355,19 +369,53 @@ function buildBarValues(
     return (value - riderMin) / riderSpread;
   }
 
-  const bars: RiderCategoryBar[] = riderCats.map((t) => {
-    const field = fieldRank(t.category_id, t.avg_percentile);
-    const personal = personalRank(t.avg_percentile);
+  return riderBars.map((t) => ({
+    kind: "bar" as const,
+    category_id: t.category_id,
+    category_name: t.category_name,
+    display_order: t.display_order,
+    value:
+      FIELD_WEIGHT * fieldRank(t.category_id, t.avg_percentile) +
+      PERSONAL_WEIGHT * personalRank(t.avg_percentile),
+  }));
+}
+
+function buildSliderValues(
+  allSliders: SliderAggregation[],
+  personId: string,
+): RiderSliderValue[] {
+  const riderSliders = allSliders.filter(
+    (a) => a.person_id === personId && a.rides >= MIN_RIDES_FOR_SLIDER,
+  );
+  if (riderSliders.length === 0) return [];
+
+  // For each slider category, find the field range of (high - low)
+  const fieldDiffs = new Map<string, number[]>();
+  for (const a of allSliders) {
+    if (a.rides < MIN_RIDES_FOR_SLIDER) continue;
+    if (!fieldDiffs.has(a.category_id)) fieldDiffs.set(a.category_id, []);
+    fieldDiffs.get(a.category_id)!.push(a.high_score - a.low_score);
+  }
+
+  return riderSliders.map((t) => {
+    const myDiff = t.high_score - t.low_score;
+    const fieldRange = fieldDiffs.get(t.category_id) ?? [];
+    const maxAbs = Math.max(
+      0.01,
+      ...fieldRange.map((d) => Math.abs(d)),
+    );
+    // Normalize: -maxAbs maps to 0, +maxAbs maps to 1, 0 maps to 0.5
+    const normalized = (myDiff + maxAbs) / (2 * maxAbs);
     return {
+      kind: "slider" as const,
       category_id: t.category_id,
       category_name: t.category_name,
       display_order: t.display_order,
-      bar_value: FIELD_WEIGHT * field + PERSONAL_WEIGHT * personal,
+      low_label: t.low_label,
+      high_label: t.high_label,
+      position: Math.max(0, Math.min(1, normalized)),
     };
   });
-
-  bars.sort((a, b) => a.display_order - b.display_order);
-  return bars;
 }
 
 function ProgressBar({ value }: { value: number }) {
@@ -382,11 +430,57 @@ function ProgressBar({ value }: { value: number }) {
   );
 }
 
-function CategoryBarRow({ name, value }: { name: string; value: number }) {
+function PreferenceSlider({
+  position,
+  lowLabel,
+  highLabel,
+}: {
+  position: number;
+  lowLabel: string;
+  highLabel: string;
+}) {
+  const pct = Math.max(0, Math.min(1, position)) * 100;
+  return (
+    <div>
+      <div className="relative h-3 w-full rounded bg-gray-200">
+        {/* Center tick */}
+        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-400" />
+        {/* Marker */}
+        <div
+          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow"
+          style={{ left: `${pct}%` }}
+        />
+      </div>
+      <div className="flex justify-between text-xs text-gray-500 mt-1">
+        <span>{lowLabel}</span>
+        <span>{highLabel}</span>
+      </div>
+    </div>
+  );
+}
+
+function BarRow({ entry }: { entry: RiderBarValue }) {
   return (
     <div className="grid grid-cols-[100px_1fr] items-center gap-3 mb-2">
-      <div className="text-sm text-gray-700 truncate">{name}</div>
-      <ProgressBar value={value} />
+      <div className="text-sm text-gray-700 truncate">
+        {entry.category_name}
+      </div>
+      <ProgressBar value={entry.value} />
+    </div>
+  );
+}
+
+function SliderRow({ entry }: { entry: RiderSliderValue }) {
+  return (
+    <div className="grid grid-cols-[100px_1fr] items-start gap-3 mb-2">
+      <div className="text-sm text-gray-700 truncate pt-0.5">
+        {entry.category_name}
+      </div>
+      <PreferenceSlider
+        position={entry.position}
+        lowLabel={entry.low_label}
+        highLabel={entry.high_label}
+      />
     </div>
   );
 }
@@ -396,18 +490,21 @@ export async function PersonRiderProfile({
 }: {
   personId: string;
 }) {
-  let allAggregations: CategoryPerRider[] = [];
+  let allBars: BarAggregation[] = [];
+  let allSliders: SliderAggregation[] = [];
   let errorMsg: string | null = null;
 
   try {
     const { rides, categoriesByStage, categories, stageLengthRank } =
       await fetchAllData();
-    allAggregations = buildCategoryAggregations(
+    const result = buildAggregations(
       rides,
       categoriesByStage,
       categories,
       stageLengthRank,
     );
+    allBars = result.bars;
+    allSliders = result.sliders;
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
   }
@@ -421,21 +518,24 @@ export async function PersonRiderProfile({
     );
   }
 
-  const bars = buildBarValues(allAggregations, personId);
+  const bars = buildBarValues(allBars, personId);
+  const sliders = buildSliderValues(allSliders, personId);
 
-  if (bars.length === 0) {
-    return null;
-  }
+  const entries: RiderProfileEntry[] = [...bars, ...sliders].sort(
+    (a, b) => a.display_order - b.display_order,
+  );
+
+  if (entries.length === 0) return null;
 
   return (
     <section className="mb-8">
-      {bars.map((b) => (
-        <CategoryBarRow
-          key={b.category_id}
-          name={b.category_name}
-          value={b.bar_value}
-        />
-      ))}
+      {entries.map((entry) =>
+        entry.kind === "bar" ? (
+          <BarRow key={entry.category_id} entry={entry} />
+        ) : (
+          <SliderRow key={entry.category_id} entry={entry} />
+        ),
+      )}
     </section>
   );
 }
