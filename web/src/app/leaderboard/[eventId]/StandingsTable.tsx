@@ -17,8 +17,6 @@ type SplitDef = {
 
 type SortKey =
   | "position"
-  | "course_name"
-  | "class_name"
   | "total_time_ms"
   | "time_back_ms"
   | `stage:${string}`
@@ -81,8 +79,10 @@ export function StandingsTable({
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
   const [showSplits, setShowSplits] = useState(initialShowSplits);
-  const [selectedStageIds, setSelectedStageIds] = useState<string[] | null>(
-    initialSelectedStageIds.length > 0 ? initialSelectedStageIds : null,
+
+  // Default: no stages selected. URL state wins if set.
+  const [selectedStageIds, setSelectedStageIds] = useState<string[]>(
+    initialSelectedStageIds,
   );
 
   // Rider compare state
@@ -91,6 +91,11 @@ export function StandingsTable({
   );
   const [compareOnly, setCompareOnly] = useState(initialCompareOnly);
   const [riderQuery, setRiderQuery] = useState("");
+
+  // Filters panel open state — defaults are set in JSX via responsive classes
+  // (open on desktop via CSS), but we still control it explicitly via state
+  // for runtime toggling.
+  const [filtersOpen, setFiltersOpen] = useState<boolean | null>(null);
 
   const classSelected = Boolean(klass);
 
@@ -105,8 +110,7 @@ export function StandingsTable({
     const nextCourse = opts.nextCourse ?? course;
     const nextClass = opts.nextClass ?? klass;
     const nextShowSplits = opts.nextShowSplits ?? showSplits;
-    const nextStageIds =
-      opts.nextStageIds ?? (selectedStageIds === null ? [] : selectedStageIds);
+    const nextStageIds = opts.nextStageIds ?? selectedStageIds;
     const nextRiderIds = opts.nextRiderIds ?? selectedRiderIds;
     const nextCompareOnly = opts.nextCompareOnly ?? compareOnly;
 
@@ -130,7 +134,7 @@ export function StandingsTable({
   function onCourseChange(v: string) {
     setCourse(v);
     setKlass("");
-    setSelectedStageIds(null);
+    setSelectedStageIds([]);
     setSelectedRiderIds([]);
     setCompareOnly(false);
     updateUrl({
@@ -160,14 +164,6 @@ export function StandingsTable({
   }
 
   function onToggleStage(stageId: string) {
-    if (selectedStageIds === null) {
-      const next = stageList
-        .map((s) => s.stage_id)
-        .filter((id) => id !== stageId);
-      setSelectedStageIds(next);
-      updateUrl({ nextStageIds: next });
-      return;
-    }
     const next = selectedStageIds.includes(stageId)
       ? selectedStageIds.filter((id) => id !== stageId)
       : [...selectedStageIds, stageId];
@@ -175,9 +171,16 @@ export function StandingsTable({
     updateUrl({ nextStageIds: next });
   }
 
-  function onSelectAllStages() {
-    setSelectedStageIds(null);
-    updateUrl({ nextStageIds: [] });
+  function onShowAllStages() {
+    const allIds = stageList.map((s) => s.stage_id);
+    setSelectedStageIds(allIds);
+    updateUrl({ nextStageIds: allIds });
+  }
+
+  function onHideAllStages() {
+    setSelectedStageIds([]);
+    setShowSplits(false);
+    updateUrl({ nextStageIds: [], nextShowSplits: false });
   }
 
   function onAddRider(entryId: string) {
@@ -226,7 +229,6 @@ export function StandingsTable({
     return Array.from(set).sort((a, b) => a.localeCompare(b));
   }, [course, standings]);
 
-  // Riders in the current course/scope (compare candidates)
   const scopedRiders = useMemo(() => {
     return standings.filter((r) => {
       if (r.course_name !== course) return false;
@@ -236,15 +238,12 @@ export function StandingsTable({
     });
   }, [standings, course, displayScope, klass]);
 
-  // For chip display & search dropdown, build entry_id → row map
   const ridersById = useMemo(() => {
     const map = new Map<string, StandingsRow>();
     for (const r of scopedRiders) map.set(r.entry_id, r);
     return map;
   }, [scopedRiders]);
 
-  // Search dropdown matches: case-insensitive, not-already-selected,
-  // capped at 8 results
   const riderMatches = useMemo(() => {
     const q = riderQuery.trim().toLowerCase();
     if (!q) return [];
@@ -260,7 +259,6 @@ export function StandingsTable({
     return matches;
   }, [riderQuery, scopedRiders, selectedRiderIds]);
 
-  // The filtered (compare-only) set when active
   const filtered = useMemo(() => {
     const base = compareOnly && selectedRiderIds.length > 0
       ? scopedRiders.filter((r) => selectedRiderIds.includes(r.entry_id))
@@ -326,9 +324,10 @@ export function StandingsTable({
     return out;
   }, [splitTimes]);
 
+  // Stages available in the current scoped data — chip universe
   const stageList = useMemo(() => {
     const map = new Map<string, { name: string; ordinal: number }>();
-    for (const row of filtered) {
+    for (const row of scopedRiders) {
       const stagesForEntry = stageMap.get(row.entry_id);
       if (!stagesForEntry) continue;
       for (const [stage_id, stage] of stagesForEntry.entries()) {
@@ -344,10 +343,9 @@ export function StandingsTable({
     return Array.from(map.entries())
       .map(([stage_id, v]) => ({ stage_id, ...v }))
       .sort((a, b) => a.ordinal - b.ordinal);
-  }, [filtered, stageMap]);
+  }, [scopedRiders, stageMap]);
 
   const visibleStages = useMemo(() => {
-    if (selectedStageIds === null) return stageList;
     const set = new Set(selectedStageIds);
     return stageList.filter((s) => set.has(s.stage_id));
   }, [stageList, selectedStageIds]);
@@ -357,8 +355,6 @@ export function StandingsTable({
       if (key === "position") {
         return row.is_dnf ? null : (row.position ?? null);
       }
-      if (key === "course_name") return row.course_name ?? null;
-      if (key === "class_name") return row.class_name ?? null;
       if (key === "total_time_ms") {
         return row.is_dnf ? null : (row.total_time_ms ?? null);
       }
@@ -387,168 +383,241 @@ export function StandingsTable({
   );
 
   const totalInCourse = standings.filter((r) => r.course_name === course).length;
+  const ridersShownLabel = `${sorted.length} of ${totalInCourse} riders`;
+
+  // Determine if the filters panel is open. When filtersOpen is null (initial),
+  // we rely on responsive defaults — open on desktop, closed on mobile.
+  // After the user clicks the toggle, filtersOpen overrides for both.
+  const filtersExplicitlySet = filtersOpen !== null;
+  const filtersBlockClasses = filtersExplicitlySet
+    ? filtersOpen
+      ? "block"
+      : "hidden"
+    : "hidden sm:block";
+  const collapsedSummaryClasses = filtersExplicitlySet
+    ? filtersOpen
+      ? "hidden"
+      : "block"
+    : "block sm:hidden";
 
   return (
     <div>
-      <div className="flex flex-wrap gap-3 mb-3 items-center">
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">Course:</span>
-          <select
-            value={course}
-            onChange={(e) => onCourseChange(e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-          >
-            {courses.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <span className="text-gray-600">Class:</span>
-          <select
-            value={klass}
-            onChange={(e) => onClassChange(e.target.value)}
-            className="border border-gray-300 rounded px-2 py-1 text-sm"
-          >
-            <option value="">All</option>
-            {visibleClasses.map((c) => (
-              <option key={c} value={c}>
-                {c}
-              </option>
-            ))}
-          </select>
-        </label>
-
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={showSplits}
-            onChange={onToggleSplits}
-          />
-          <span className="text-gray-700">Show splits</span>
-        </label>
-
-        <span className="ml-auto text-sm text-gray-500 self-center">
-          {compareOnly && selectedRiderIds.length > 0
-            ? `Comparing ${sorted.length} of ${totalInCourse}`
-            : `${sorted.length} of ${totalInCourse}`}
-        </span>
+      {/* Filter panel toggle (mobile only by default) */}
+      <div className="mb-3">
+        <button
+          type="button"
+          onClick={() =>
+            setFiltersOpen((prev) =>
+              prev === null
+                ? // first interaction: assume current desktop default and flip
+                  typeof window !== "undefined" && window.innerWidth >= 640
+                  ? false
+                  : true
+                : !prev,
+            )
+          }
+          className="flex w-full items-center justify-between gap-2 text-sm border border-gray-200 rounded px-3 py-2 hover:bg-gray-50 sm:hidden"
+        >
+          <span className="font-medium text-gray-900">
+            {filtersOpen === false || (filtersOpen === null && true)
+              ? "Show filters"
+              : "Hide filters"}
+          </span>
+          <span className="text-gray-500 text-xs">
+            {[course, klass].filter(Boolean).join(" · ") || "All"} ·{" "}
+            {ridersShownLabel}
+          </span>
+        </button>
       </div>
 
-      {/* Compare riders */}
-      <div className="mb-4 text-sm">
-        <div className="relative max-w-md">
-          <input
-            type="search"
-            placeholder="Compare riders — type a name to add"
-            value={riderQuery}
-            onChange={(e) => setRiderQuery(e.target.value)}
-            className="border border-gray-300 rounded px-3 py-1.5 w-full text-sm"
-          />
-          {riderMatches.length > 0 && (
-            <ul className="absolute left-0 right-0 top-full mt-1 z-10 border border-gray-200 bg-white rounded shadow-md max-h-72 overflow-y-auto">
-              {riderMatches.map((r) => (
-                <li key={r.entry_id}>
-                  <button
-                    type="button"
-                    onClick={() => onAddRider(r.entry_id)}
-                    className="block w-full text-left px-3 py-1.5 hover:bg-gray-50"
-                  >
-                    <span className="text-gray-900">{displayName(r)}</span>
-                    {r.class_name && (
-                      <span className="text-gray-500 ml-2 text-xs">
-                        {r.class_name}
-                      </span>
-                    )}
-                  </button>
-                </li>
+      {/* Filters block */}
+      <div className={`${filtersBlockClasses} mb-4`}>
+        <div className="flex flex-wrap gap-3 mb-3 items-center">
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-gray-600">Course:</span>
+            <select
+              value={course}
+              onChange={(e) => onCourseChange(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-sm"
+            >
+              {courses.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
               ))}
-            </ul>
+            </select>
+          </label>
+
+          <label className="flex items-center gap-2 text-sm">
+            <span className="text-gray-600">Class:</span>
+            <select
+              value={klass}
+              onChange={(e) => onClassChange(e.target.value)}
+              className="border border-gray-300 rounded px-2 py-1 text-sm"
+            >
+              <option value="">All</option>
+              {visibleClasses.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <span className="ml-auto text-sm text-gray-500 self-center">
+            {compareOnly && selectedRiderIds.length > 0
+              ? `Comparing ${sorted.length} of ${totalInCourse}`
+              : ridersShownLabel}
+          </span>
+        </div>
+
+        {/* Compare riders */}
+        <div className="mb-4 text-sm">
+          <div className="relative max-w-md">
+            <input
+              type="search"
+              placeholder="Compare riders — type a name to add"
+              value={riderQuery}
+              onChange={(e) => setRiderQuery(e.target.value)}
+              className="border border-gray-300 rounded px-3 py-1.5 w-full text-sm"
+            />
+            {riderMatches.length > 0 && (
+              <ul className="absolute left-0 right-0 top-full mt-1 z-30 border border-gray-200 bg-white rounded shadow-md max-h-72 overflow-y-auto">
+                {riderMatches.map((r) => (
+                  <li key={r.entry_id}>
+                    <button
+                      type="button"
+                      onClick={() => onAddRider(r.entry_id)}
+                      className="block w-full text-left px-3 py-1.5 hover:bg-gray-50"
+                    >
+                      <span className="text-gray-900">{displayName(r)}</span>
+                      {r.class_name && (
+                        <span className="text-gray-500 ml-2 text-xs">
+                          {r.class_name}
+                        </span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+
+          {selectedRiderIds.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 mt-2">
+              {selectedRiderIds.map((entryId) => {
+                const row = ridersById.get(entryId);
+                if (!row) return null;
+                return (
+                  <span
+                    key={entryId}
+                    className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 text-xs px-2 py-0.5 rounded"
+                  >
+                    {displayName(row)}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${displayName(row)}`}
+                      onClick={() => onRemoveRider(entryId)}
+                      className="text-gray-500 hover:text-gray-800 leading-none ml-0.5"
+                    >
+                      ×
+                    </button>
+                  </span>
+                );
+              })}
+
+              <button
+                type="button"
+                onClick={onToggleCompareOnly}
+                className={`text-xs px-2 py-0.5 rounded border ${
+                  compareOnly
+                    ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                    : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                }`}
+              >
+                {compareOnly
+                  ? "Showing selected only"
+                  : `Show only selected (${selectedRiderIds.length})`}
+              </button>
+
+              <button
+                type="button"
+                onClick={onClearRiders}
+                className="text-xs text-blue-600 hover:underline"
+              >
+                Clear
+              </button>
+            </div>
           )}
         </div>
 
-        {selectedRiderIds.length > 0 && (
-          <div className="flex flex-wrap items-center gap-2 mt-2">
-            {selectedRiderIds.map((entryId) => {
-              const row = ridersById.get(entryId);
-              if (!row) return null;
-              return (
-                <span
-                  key={entryId}
-                  className="inline-flex items-center gap-1 bg-gray-100 text-gray-800 text-xs px-2 py-0.5 rounded"
-                >
-                  {displayName(row)}
+        {/* Stages */}
+        {stageList.length > 0 && (
+          <div className="mb-2 text-sm">
+            <div className="text-gray-600 mb-1">Stages</div>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {stageList.map((s) => {
+                const isOn = selectedStageIds.includes(s.stage_id);
+                return (
                   <button
+                    key={s.stage_id}
                     type="button"
-                    aria-label={`Remove ${displayName(row)}`}
-                    onClick={() => onRemoveRider(entryId)}
-                    className="text-gray-500 hover:text-gray-800 leading-none ml-0.5"
+                    onClick={() => onToggleStage(s.stage_id)}
+                    className={`text-xs px-2 py-0.5 rounded border ${
+                      isOn
+                        ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                        : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                    }`}
                   >
-                    ×
+                    {s.name}
                   </button>
-                </span>
-              );
-            })}
+                );
+              })}
+            </div>
 
-            <button
-              type="button"
-              onClick={onToggleCompareOnly}
-              className={`text-xs px-2 py-0.5 rounded border ${
-                compareOnly
-                  ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
-                  : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
-              }`}
-            >
-              {compareOnly
-                ? "Showing selected only"
-                : `Show only selected (${selectedRiderIds.length})`}
-            </button>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={onShowAllStages}
+                disabled={selectedStageIds.length === stageList.length}
+                className="text-xs px-2 py-0.5 rounded border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Show all
+              </button>
+              <button
+                type="button"
+                onClick={onHideAllStages}
+                disabled={selectedStageIds.length === 0}
+                className="text-xs px-2 py-0.5 rounded border bg-white text-gray-700 border-gray-300 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Hide all
+              </button>
 
-            <button
-              type="button"
-              onClick={onClearRiders}
-              className="text-xs text-blue-600 hover:underline"
-            >
-              Clear
-            </button>
+              {/* Show splits only when at least one stage is visible */}
+              {visibleStages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onToggleSplits}
+                  className={`text-xs px-2 py-0.5 rounded border ${
+                    showSplits
+                      ? "bg-blue-600 text-white border-blue-600 hover:bg-blue-700"
+                      : "bg-white text-gray-700 border-gray-300 hover:bg-gray-50"
+                  }`}
+                >
+                  {showSplits ? "Splits on" : "Show splits"}
+                </button>
+              )}
+            </div>
           </div>
         )}
       </div>
 
-      {stageList.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mb-4 text-sm">
-          <span className="text-gray-600">Stages:</span>
-          {stageList.map((s) => {
-            const checked =
-              selectedStageIds === null ||
-              selectedStageIds.includes(s.stage_id);
-            return (
-              <label
-                key={s.stage_id}
-                className="flex items-center gap-1 cursor-pointer"
-              >
-                <input
-                  type="checkbox"
-                  checked={checked}
-                  onChange={() => onToggleStage(s.stage_id)}
-                />
-                <span>{s.name}</span>
-              </label>
-            );
-          })}
-          {selectedStageIds !== null && (
-            <button
-              onClick={onSelectAllStages}
-              className="text-blue-600 hover:underline"
-            >
-              Show all
-            </button>
-          )}
-        </div>
-      )}
+      {/* Collapsed summary (mobile only by default) */}
+      <div
+        className={`${collapsedSummaryClasses} mb-3 text-sm text-gray-500 px-1`}
+      >
+        {ridersShownLabel}
+      </div>
 
       {sorted.length === 0 ? (
         <p className="text-gray-500">
@@ -557,18 +626,19 @@ export function StandingsTable({
             : "No results match the current course and class selection."}
         </p>
       ) : (
-        <div className="overflow-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-200px)] lg:max-h-[calc(100vh-220px)]">
+        <div className="overflow-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-220px)]">
           <table className="min-w-full text-sm table-auto">
             <thead className="bg-gray-100">
               <tr>
-              <SortableHeader<SortKey>
-                label="Rider"
-                sortKey="position"
-                currentKey={sort.key}
-                currentDir={sort.dir}
-                onSort={onSort}
-                className="sticky left-0 bg-gray-100 z-20 min-w-[180px]"
-              />
+                <SortableHeader<SortKey>
+                  label="Rider"
+                  sortKey="position"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                  className="sticky left-0 bg-gray-100 z-20 min-w-[180px]"
+                />
+
                 {visibleStages.map((s) => {
                   const splits = showSplits
                     ? (splitsByStageId.get(s.stage_id) ?? [])
@@ -644,7 +714,7 @@ export function StandingsTable({
                       </span>
                       <div className="leading-tight">
                         {row.person_id ? (
-                          <Link href = {`/person/${row.person_id}`}>
+                          <Link href={`/person/${row.person_id}`}>
                             {row.first_name} {row.last_name}
                           </Link>
                         ) : (
@@ -653,11 +723,14 @@ export function StandingsTable({
                           </span>
                         )}
                         <div className="text-xs text-gray-500">
-                          {[row.course_name, row.class_name].filter(Boolean).join(" · ")}
+                          {[row.course_name, row.class_name]
+                            .filter(Boolean)
+                            .join(" · ")}
                         </div>
                       </div>
                     </div>
                   </td>
+
                   {visibleStages.map((s) => {
                     const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
                     const splits = showSplits
