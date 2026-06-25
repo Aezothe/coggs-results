@@ -1,5 +1,5 @@
-import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
+import { TerrainList } from "./TerrainList";
 
 export const dynamic = "force-dynamic";
 
@@ -14,7 +14,7 @@ type StageTagRow = {
   stage_id: string;
 };
 
-type TerrainSummary = {
+export type TerrainSummary = {
   id: string;
   name: string;
   stage_count: number;
@@ -56,11 +56,6 @@ async function fetchUsedTerrainTags(): Promise<TerrainSummary[]> {
     });
   }
 
-  summaries.sort((a, b) => {
-    if (b.stage_count !== a.stage_count) return b.stage_count - a.stage_count;
-    return a.name.localeCompare(b.name);
-  });
-
   return summaries;
 }
 
@@ -89,21 +84,8 @@ export default async function TerrainPage() {
       )}
 
       {tags.length > 0 && (
-        <div className="rounded-lg p-2 border bg-surface border-surface-border">
-          <ul className="divide-y divide-surface-border">
-            {tags.map((t) => (
-              <li key={t.id}>
-                <Link href={`/terrain/${t.id}`}
-                  className="flex items-center justify-between py-2 px-2 rounded hover:bg-surface-hover"
-                >
-                  <span className="text-surface-foreground">{t.name}</span>
-                  <span className="text-sm text-surface-muted tabular-nums">
-                    {t.stage_count} stage{t.stage_count === 1 ? "" : "s"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <div className="rounded-lg p-4 border bg-surface border-surface-border">
+          <TerrainList tags={tags} />
         </div>
       )}
     </main>
