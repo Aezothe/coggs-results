@@ -79,13 +79,13 @@ async function fetchStageTags(stageId: string): Promise<TagRow[]> {
     .select("tag:tag_id(id, name, category)")
     .eq("stage_id", stageId);
   if (error) throw new Error(error.message);
-
   type JoinRow = { tag: TagRow | null };
   return ((data ?? []) as unknown as JoinRow[])
     .map((r) => r.tag)
     .filter((t): t is TagRow => !!t)
     .sort((a, b) => {
-      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      if (a.category !== b.category)
+        return a.category.localeCompare(b.category);
       return a.name.localeCompare(b.name);
     });
 }
@@ -119,17 +119,14 @@ function percentile(position: number, finishers: number): number {
 
 async function fetchPeopleAndCompetitors(rides: RideRow[]) {
   const supabase = getServiceClient();
-
   const personIds = Array.from(
     new Set(rides.map((r) => r.person_id).filter((x): x is string => !!x)),
   );
   const competitorIds = Array.from(
     new Set(rides.map((r) => r.competitor_id).filter(Boolean)),
   );
-
   const peopleById = new Map<string, PersonRow>();
   const competitorsById = new Map<string, CompetitorRow>();
-
   if (personIds.length > 0) {
     const { data, error } = await supabase
       .from("person")
@@ -140,7 +137,6 @@ async function fetchPeopleAndCompetitors(rides: RideRow[]) {
       peopleById.set(p.id, p);
     }
   }
-
   if (competitorIds.length > 0) {
     const chunkSize = 500;
     for (let i = 0; i < competitorIds.length; i += chunkSize) {
@@ -155,16 +151,13 @@ async function fetchPeopleAndCompetitors(rides: RideRow[]) {
       }
     }
   }
-
   return { peopleById, competitorsById };
 }
 
 async function fetchEventsAndCourses(rides: RideRow[]) {
   const supabase = getServiceClient();
-
   const eventIds = Array.from(new Set(rides.map((r) => r.event_id)));
   const entryIds = Array.from(new Set(rides.map((r) => r.entry_id)));
-
   const eventsById = new Map<string, EventRow>();
   if (eventIds.length > 0) {
     const { data, error } = await supabase
@@ -176,7 +169,6 @@ async function fetchEventsAndCourses(rides: RideRow[]) {
       eventsById.set(e.id, e);
     }
   }
-
   const entriesById = new Map<string, EntryRow>();
   if (entryIds.length > 0) {
     const chunkSize = 500;
@@ -192,7 +184,6 @@ async function fetchEventsAndCourses(rides: RideRow[]) {
       }
     }
   }
-
   const courseIds = Array.from(
     new Set(
       Array.from(entriesById.values())
@@ -200,7 +191,6 @@ async function fetchEventsAndCourses(rides: RideRow[]) {
         .filter((x): x is string => !!x),
     ),
   );
-
   const coursesById = new Map<string, CourseRow>();
   if (courseIds.length > 0) {
     const { data, error } = await supabase
@@ -212,7 +202,6 @@ async function fetchEventsAndCourses(rides: RideRow[]) {
       coursesById.set(c.id, c);
     }
   }
-
   return { eventsById, entriesById, coursesById };
 }
 
@@ -229,14 +218,11 @@ function buildTopPerformers(
       pcts: number[];
     }
   >();
-
   for (const r of rides) {
     if (r.time_ms == null) continue;
     if (r.stage_position_class == null || r.finishers_class == null) continue;
-
     const identityKey = r.person_id ?? `c:${r.competitor_id}`;
     const personId = r.person_id;
-
     let displayName = "Unnamed";
     if (personId) {
       const p = peopleById.get(personId);
@@ -251,7 +237,6 @@ function buildTopPerformers(
           [c.first_name, c.last_name].filter(Boolean).join(" ") || "Unnamed";
       }
     }
-
     if (!byIdentity.has(identityKey)) {
       byIdentity.set(identityKey, { personId, displayName, pcts: [] });
     }
@@ -259,7 +244,6 @@ function buildTopPerformers(
       .get(identityKey)!
       .pcts.push(percentile(r.stage_position_class, r.finishers_class));
   }
-
   const out: TopPerformer[] = [];
   for (const [identityKey, v] of byIdentity.entries()) {
     if (v.pcts.length === 0) continue;
@@ -272,12 +256,10 @@ function buildTopPerformers(
       rides: v.pcts.length,
     });
   }
-
   out.sort((a, b) => {
     if (b.best !== a.best) return b.best - a.best;
     return b.rides - a.rides;
   });
-
   return out;
 }
 
@@ -291,7 +273,6 @@ function buildEventSummaries(
     string,
     { event_id: string; entry_ids: Set<string>; courses: Set<string> }
   >();
-
   for (const r of rides) {
     if (!byEvent.has(r.event_id)) {
       byEvent.set(r.event_id, {
@@ -302,14 +283,12 @@ function buildEventSummaries(
     }
     const slot = byEvent.get(r.event_id)!;
     slot.entry_ids.add(r.entry_id);
-
     const entry = entriesById.get(r.entry_id);
     if (entry?.course_id) {
       const course = coursesById.get(entry.course_id);
       if (course?.name) slot.courses.add(course.name);
     }
   }
-
   const out: EventSummary[] = [];
   for (const slot of byEvent.values()) {
     const ev = eventsById.get(slot.event_id);
@@ -321,13 +300,11 @@ function buildEventSummaries(
       riders: slot.entry_ids.size,
     });
   }
-
   out.sort((a, b) => {
     const ad = a.event_date ?? "";
     const bd = b.event_date ?? "";
     return bd.localeCompare(ad);
   });
-
   return out;
 }
 
@@ -360,7 +337,6 @@ export default async function StagePage({
     tags = [];
   }
 
-  // Build filter options from the raw ride set
   const allCourses = Array.from(
     new Set(rides.map((r) => r.course_name).filter((x): x is string => !!x)),
   ).sort((a, b) => a.localeCompare(b));
@@ -380,7 +356,6 @@ export default async function StagePage({
   const selectedClass =
     sp.class && allClasses.includes(sp.class) ? sp.class : "";
 
-  // Filter rides before aggregation
   const filteredRides = rides.filter((r) => {
     if (selectedCourse && r.course_name !== selectedCourse) return false;
     if (selectedClass && r.class_name !== selectedClass) return false;
@@ -407,26 +382,35 @@ export default async function StagePage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href="/stages" className="text-gray-900 hover:underline">
+        <Link href="/stages"
+          className="text-page-foreground hover:underline"
+        >
           ← All stages
         </Link>
       </nav>
 
-      <h1 className="text-2xl font-semibold mb-1">{stage.name}</h1>
+      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
+        {stage.name}
+      </h1>
 
       {stage.location?.name && (
-        <p className="text-sm text-gray-600 mb-1">{stage.location.name}</p>
+        <p className="text-sm text-page-muted mb-1">{stage.location.name}</p>
       )}
 
       {tags.length > 0 && (
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {tags.map((t) => (
-            <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
+            <TagPill
+              key={t.id}
+              id={t.id}
+              name={t.name}
+              category={t.category}
+            />
           ))}
         </div>
       )}
 
-      <p className="text-sm text-gray-500 mb-4">
+      <p className="text-sm text-page-muted mb-4">
         {events.length} event{events.length === 1 ? "" : "s"} ·{" "}
         {performers.length} rider{performers.length === 1 ? "" : "s"}
       </p>
@@ -439,25 +423,33 @@ export default async function StagePage({
         selectedClass={selectedClass}
       />
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && <p className="text-danger mb-4">Error: {errorMsg}</p>}
 
       {!errorMsg && performers.length === 0 && (
-        <p className="text-gray-500">
+        <p className="text-page-muted">
           No rides on this stage match the current filters.
         </p>
       )}
 
       {performers.length > 0 && (
         <section className="mb-10">
-          <h2 className="text-lg font-medium mb-3">Top performers</h2>
-          <TopPerformersTable performers={performers} />
+          <h2 className="text-lg font-medium mb-3 text-page-foreground">
+            Top performers
+          </h2>
+          <div className="rounded-lg p-4 border bg-surface border-surface-border">
+            <TopPerformersTable performers={performers} />
+          </div>
         </section>
       )}
 
       {events.length > 0 && (
         <section>
-          <h2 className="text-lg font-medium mb-3">Event history</h2>
-          <EventHistoryTable events={events} />
+          <h2 className="text-lg font-medium mb-3 text-page-foreground">
+            Event history
+          </h2>
+          <div className="rounded-lg p-4 border bg-surface border-surface-border">
+            <EventHistoryTable events={events} />
+          </div>
         </section>
       )}
     </main>

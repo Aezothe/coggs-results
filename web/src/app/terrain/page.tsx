@@ -37,7 +37,6 @@ async function fetchUsedTerrainTags(): Promise<TerrainSummary[]> {
   const tags = (tagsResp.data ?? []) as TagRow[];
   const join = (joinResp.data ?? []) as StageTagRow[];
 
-  // tag_id -> Set<stage_id>
   const stagesByTag = new Map<string, Set<string>>();
   for (const row of join) {
     if (!stagesByTag.has(row.tag_id)) {
@@ -76,32 +75,36 @@ export default async function TerrainPage() {
 
   return (
     <main className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-1">Terrain</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
+        Terrain
+      </h1>
+      <p className="text-sm text-page-muted mb-6">
         {tags.length} terrain type{tags.length === 1 ? "" : "s"} in use
       </p>
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && <p className="text-danger mb-4">Error: {errorMsg}</p>}
 
       {!errorMsg && tags.length === 0 && (
-        <p className="text-gray-500">No terrain tags in use yet.</p>
+        <p className="text-page-muted">No terrain tags in use yet.</p>
       )}
 
       {tags.length > 0 && (
-        <ul className="divide-y divide-gray-200">
-          {tags.map((t) => (
-            <li key={t.id}>
-              <Link href={`/terrain/${t.id}`}
-                className="flex items-center justify-between py-2 hover:bg-gray-50 px-2 -mx-2 rounded"
-              >
-                <span className="text-gray-900">{t.name}</span>
-                <span className="text-sm text-gray-500 tabular-nums">
-                  {t.stage_count} stage{t.stage_count === 1 ? "" : "s"}
-                </span>
-              </Link>
-            </li>
-          ))}
-        </ul>
+        <div className="rounded-lg p-2 border bg-surface border-surface-border">
+          <ul className="divide-y divide-surface-border">
+            {tags.map((t) => (
+              <li key={t.id}>
+                <Link href={`/terrain/${t.id}`}
+                  className="flex items-center justify-between py-2 px-2 rounded hover:bg-surface-hover"
+                >
+                  <span className="text-surface-foreground">{t.name}</span>
+                  <span className="text-sm text-surface-muted tabular-nums">
+                    {t.stage_count} stage{t.stage_count === 1 ? "" : "s"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </div>
       )}
     </main>
   );

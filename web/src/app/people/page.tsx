@@ -43,14 +43,20 @@ export default async function PeoplePage() {
 
   return (
     <main className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-1">People</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
+        People
+      </h1>
+      <p className="text-sm text-page-muted mb-6">
         {people.length} competitor{people.length === 1 ? "" : "s"}
       </p>
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && <p className="text-danger mb-4">Error: {errorMsg}</p>}
 
-      {!errorMsg && <PeopleList people={people} />}
+      {!errorMsg && (
+        <div className="rounded-lg p-4 border bg-surface border-surface-border">
+          <PeopleList people={people} />
+        </div>
+      )}
     </main>
   );
 }
