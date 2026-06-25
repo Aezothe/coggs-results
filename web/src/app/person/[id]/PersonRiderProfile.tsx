@@ -531,7 +531,7 @@ function ProfileCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg p-4 mb-4 border bg-surface border-surface-border max-w-md mx-auto">
+    <div className="rounded-lg p-4 mb-8 border bg-surface border-surface-border max-w-md mx-auto">
       <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-surface-muted">
         {title}
       </h3>
@@ -566,7 +566,7 @@ export async function PersonRiderProfile({
 
   if (errorMsg) {
     return (
-      <section className="mb-8">
+      <section>
         <h2 className="text-lg font-medium mb-3 text-page-foreground">
           Rider profile
         </h2>

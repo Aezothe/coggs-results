@@ -11,6 +11,7 @@
   --color-accent-2: #4b7fbe;
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
+  --color-accent-1-hover: #b35f15;
 
   /* === Page-level (outside any card) === */
   --color-page: #1a2540;
@@ -68,6 +69,7 @@
   --color-accent-2: var(--color-accent-2);
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
+  --color-accent-1-hover: var(--color-accent-1-hover);
 
   /* Page */
   --color-page: var(--color-page);

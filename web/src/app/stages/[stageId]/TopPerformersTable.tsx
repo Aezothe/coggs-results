@@ -37,7 +37,7 @@ export function TopPerformersTable({
   const { sorted, sort, onSort } = useSortedTable<TopPerformer, SortKey>(
     performers,
     getValue,
-    { key: "best", dir: "desc" },
+    { key: "avg", dir: "desc" },
   );
 
   return (
@@ -45,9 +45,6 @@ export function TopPerformersTable({
       <table className="min-w-full text-sm">
         <thead className="bg-surface-emphasis">
           <tr>
-            <th className="text-left px-3 py-2 w-12 text-surface-muted font-medium">
-              #
-            </th>
             <SortableHeader<SortKey>
               label="Name"
               sortKey="displayName"
@@ -82,11 +79,8 @@ export function TopPerformersTable({
           </tr>
         </thead>
         <tbody className="divide-y divide-surface-border">
-          {sorted.map((p, i) => (
+          {sorted.map((p) => (
             <tr key={p.identityKey} className="hover:bg-surface-hover">
-              <td className="px-3 py-2 text-surface-muted tabular-nums">
-                {i + 1}
-              </td>
               <td className="px-3 py-2">
                 {p.personId ? (
                   <Link href={`/person/${p.personId}`}
