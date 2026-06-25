@@ -109,7 +109,7 @@ export default async function PersonPage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <header className="mb-6">
-        <div className="text-xs font-semibold uppercase tracking-wider mb-1 text-page-muted">
+        <div className="text-xs font-semibold uppercase tracking-wider mb-1 text-accent-1">
           Rider Profile
         </div>
         <h1 className="text-3xl font-bold text-page-foreground">
