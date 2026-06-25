@@ -111,7 +111,33 @@ export default async function PersonPage({
 
   return (
     <main className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-1">{displayName}</h1>
+      <header className="mb-6">
+        <div
+          className="text-xs font-semibold uppercase tracking-wider mb-1"
+          style={{ color: "var(--color-text-muted)" }}
+        >
+          Rider Profile
+        </div>
+        <h1
+          className="text-3xl font-bold"
+          style={{ color: "var(--color-text)" }}
+        >
+          {displayName}
+        </h1>
+        {results.length > 0 && (
+          <p
+            className="text-sm mt-1"
+            style={{ color: "var(--color-text-muted)" }}
+          >
+            Race Category and Class:{" "}
+            {[results[0].course_name, results[0].class_name]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        )}
+      </header>
+
+<PersonRiderProfile personId={id} />
 
       <PersonRiderProfile personId={id} />
 
