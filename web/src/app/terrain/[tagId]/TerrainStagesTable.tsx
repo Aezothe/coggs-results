@@ -33,9 +33,9 @@ export function TerrainStagesTable({ stages }: { stages: StageWithCounts[] }) {
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto text-surface-foreground">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-surface-emphasis">
           <tr>
             <SortableHeader<SortKey>
               label="Stage"
@@ -62,20 +62,20 @@ export function TerrainStagesTable({ stages }: { stages: StageWithCounts[] }) {
             />
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-surface-border">
           {sorted.map((s) => (
-            <tr key={s.id} className="hover:bg-gray-50">
+            <tr key={s.id} className="hover:bg-surface-hover">
               <td className="px-3 py-2">
                 <Link href={`/stages/${s.id}`}
-                  className="text-gray-900 hover:underline"
+                  className="text-surface-foreground hover:underline"
                 >
                   {s.name}
                 </Link>
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted">
                 {s.events}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted">
                 {s.rides}
               </td>
             </tr>

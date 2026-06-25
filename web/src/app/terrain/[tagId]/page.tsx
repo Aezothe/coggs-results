@@ -25,7 +25,6 @@ async function fetchTag(tagId: string): Promise<TagRow | null> {
 async function fetchStagesForTag(tagId: string): Promise<StageWithCounts[]> {
   const supabase = getServiceClient();
 
-  // 1. The stage_ids that have this tag
   const { data: joinData, error: joinErr } = await supabase
     .from("stage_tag")
     .select("stage_id")
@@ -35,14 +34,12 @@ async function fetchStagesForTag(tagId: string): Promise<StageWithCounts[]> {
   const stageIds = (joinData ?? []).map((r) => r.stage_id as string);
   if (stageIds.length === 0) return [];
 
-  // 2. Stage names
   const { data: stageRows, error: stageErr } = await supabase
     .from("stage")
     .select("id, name")
     .in("id", stageIds);
   if (stageErr) throw new Error(stageErr.message);
 
-  // 3. Ride counts per stage
   const pageSize = 1000;
   const rideRows: { stage_id: string; event_id: string }[] = [];
   let offset = 0;
@@ -98,25 +95,33 @@ export default async function TerrainDetailPage({
   return (
     <main className="p-6 max-w-3xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href = "/terrain" className="text-gray-900 hover:underline">
+        <Link href="/terrain"
+          className="text-page-foreground hover:underline"
+        >
           ← All terrain
         </Link>
       </nav>
 
-      <h1 className="text-2xl font-semibold mb-1">{tag.name}</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
+        {tag.name}
+      </h1>
+      <p className="text-sm text-page-muted mb-6">
         {tag.category} · {stages.length} stage{stages.length === 1 ? "" : "s"}
       </p>
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && <p className="text-danger mb-4">Error: {errorMsg}</p>}
 
       {!errorMsg && stages.length === 0 && (
-        <p className="text-gray-500">
+        <p className="text-page-muted">
           No stages tagged with {tag.name} yet.
         </p>
       )}
 
-      {stages.length > 0 && <TerrainStagesTable stages={stages} />}
+      {stages.length > 0 && (
+        <div className="rounded-lg p-4 border bg-surface border-surface-border">
+          <TerrainStagesTable stages={stages} />
+        </div>
+      )}
     </main>
   );
 }

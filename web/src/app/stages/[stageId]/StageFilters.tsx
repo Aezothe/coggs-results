@@ -35,11 +35,11 @@ export function StageFilters({
   return (
     <div className="flex flex-wrap items-center gap-3 mb-4 text-sm">
       <label className="flex items-center gap-2">
-        <span className="text-gray-600">Course:</span>
+        <span className="text-page-muted">Course:</span>
         <select
           value={selectedCourse}
           onChange={(e) => updateUrl(e.target.value, "")}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="border border-surface-border-strong rounded px-2 py-1 text-sm bg-surface text-surface-foreground"
         >
           <option value="">All</option>
           {courses.map((c) => (
@@ -51,11 +51,11 @@ export function StageFilters({
       </label>
 
       <label className="flex items-center gap-2">
-        <span className="text-gray-600">Class:</span>
+        <span className="text-page-muted">Class:</span>
         <select
           value={selectedClass}
           onChange={(e) => updateUrl(selectedCourse, e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1 text-sm"
+          className="border border-surface-border-strong rounded px-2 py-1 text-sm bg-surface text-surface-foreground"
         >
           <option value="">All</option>
           {classes.map((c) => (
@@ -69,7 +69,7 @@ export function StageFilters({
       {(selectedCourse || selectedClass) && (
         <button
           onClick={() => updateUrl("", "")}
-          className="text-blue-600 hover:underline"
+          className="text-primary hover:underline"
         >
           Clear filters
         </button>

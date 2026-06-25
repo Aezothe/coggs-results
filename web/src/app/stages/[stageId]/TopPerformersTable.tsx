@@ -41,11 +41,13 @@ export function TopPerformersTable({
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto text-surface-foreground">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-surface-emphasis">
           <tr>
-            <th className="text-left px-3 py-2 w-12 text-gray-700">#</th>
+            <th className="text-left px-3 py-2 w-12 text-surface-muted font-medium">
+              #
+            </th>
             <SortableHeader<SortKey>
               label="Name"
               sortKey="displayName"
@@ -79,26 +81,32 @@ export function TopPerformersTable({
             />
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-surface-border">
           {sorted.map((p, i) => (
-            <tr key={p.identityKey} className="hover:bg-gray-50">
-              <td className="px-3 py-2 text-gray-500">{i + 1}</td>
+            <tr key={p.identityKey} className="hover:bg-surface-hover">
+              <td className="px-3 py-2 text-surface-muted tabular-nums">
+                {i + 1}
+              </td>
               <td className="px-3 py-2">
                 {p.personId ? (
-                  <Link href={`/person/${p.personId}`}>
+                  <Link href={`/person/${p.personId}`}
+                    className="text-surface-foreground hover:underline"
+                  >
                     {p.displayName}
                   </Link>
                 ) : (
-                  p.displayName
+                  <span className="text-surface-foreground">
+                    {p.displayName}
+                  </span>
                 )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-foreground">
                 {(p.best * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted">
                 {(p.avg * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted">
                 {p.rides}
               </td>
             </tr>

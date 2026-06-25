@@ -36,9 +36,9 @@ export function EventHistoryTable({ events }: { events: EventSummary[] }) {
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto text-surface-foreground">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-surface-emphasis">
           <tr>
             <SortableHeader<SortKey>
               label="Date"
@@ -71,21 +71,23 @@ export function EventHistoryTable({ events }: { events: EventSummary[] }) {
             />
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-surface-border">
           {sorted.map((ev) => (
-            <tr key={ev.event_id} className="hover:bg-gray-50">
-              <td className="px-3 py-2 text-gray-600">
+            <tr key={ev.event_id} className="hover:bg-surface-hover">
+              <td className="px-3 py-2 text-surface-muted whitespace-nowrap">
                 {ev.event_date ?? ""}
               </td>
               <td className="px-3 py-2">
-                <Link href={`/leaderboard/${ev.event_id}`}>
+                <Link href={`/leaderboard/${ev.event_id}`}
+                  className="text-surface-foreground hover:underline"
+                >
                   {ev.event_name}
                 </Link>
               </td>
-              <td className="px-3 py-2 text-gray-600">
+              <td className="px-3 py-2 text-surface-muted">
                 {ev.courses.join(", ")}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted">
                 {ev.riders}
               </td>
             </tr>

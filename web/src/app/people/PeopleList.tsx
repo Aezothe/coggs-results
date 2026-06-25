@@ -44,20 +44,20 @@ export function PeopleList({ people }: { people: PersonRow[] }) {
           placeholder="Search by name..."
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          className="flex-1 border border-gray-300 rounded px-3 py-2 text-sm"
+          className="flex-1 border border-surface-border-strong rounded px-3 py-2 text-sm bg-surface text-surface-foreground placeholder:text-surface-muted"
           autoFocus
         />
-        <span className="text-sm text-gray-500 whitespace-nowrap">
+        <span className="text-sm text-surface-muted whitespace-nowrap">
           {filtered.length} of {people.length}
         </span>
       </div>
 
       {filtered.length === 0 ? (
-        <p className="text-gray-500 text-sm">No people match.</p>
+        <p className="text-surface-muted text-sm">No people match.</p>
       ) : (
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto text-surface-foreground">
           <table className="min-w-full text-sm">
-            <thead className="bg-gray-100">
+            <thead className="bg-surface-emphasis">
               <tr>
                 <SortableHeader<SortKey>
                   label="Name"
@@ -76,15 +76,17 @@ export function PeopleList({ people }: { people: PersonRow[] }) {
                 />
               </tr>
             </thead>
-            <tbody className="divide-y">
+            <tbody className="divide-y divide-surface-border">
               {sorted.map((p) => (
-                <tr key={p.id} className="hover:bg-gray-50">
+                <tr key={p.id} className="hover:bg-surface-hover">
                   <td className="px-3 py-2">
-                    <Link href ={`/person/${p.id}`}>
+                    <Link href={`/person/${p.id}`}
+                      className="text-surface-foreground hover:underline"
+                    >
                       {displayName(p)}
                     </Link>
                   </td>
-                  <td className="px-3 py-2 text-right tabular-nums text-gray-600">
+                  <td className="px-3 py-2 text-right tabular-nums text-surface-muted">
                     {p.event_count}
                   </td>
                 </tr>
