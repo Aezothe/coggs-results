@@ -85,6 +85,29 @@ async function fetchPersonResults(personId: string): Promise<PersonResult[]> {
   })) as PersonResult[];
 }
 
+function mostCommon<T extends PersonResult, K extends "course_name" | "class_name">(
+  results: T[],
+  key: K,
+): string | null {
+  const counts = new Map<string, { count: number; latest: number }>();
+  for (const r of results) {
+    const val = r[key];
+    if (!val) continue;
+    const ts = r.event_date ? new Date(r.event_date).getTime() : 0;
+    const entry = counts.get(val);
+    if (entry) {
+      entry.count += 1;
+      if (ts > entry.latest) entry.latest = ts;
+    } else {
+      counts.set(val, { count: 1, latest: ts });
+    }
+  }
+  if (!counts.size) return null;
+  return [...counts.entries()].sort(
+    (a, b) => b[1].count - a[1].count || b[1].latest - a[1].latest,
+  )[0][0];
+}
+
 export default async function PersonPage({
   params,
 }: {
@@ -116,14 +139,16 @@ export default async function PersonPage({
         <h1 className="text-3xl font-bold text-page-foreground">
           {displayName}
         </h1>
-        {results.length > 0 && (
-          <p className="text-sm mt-1 text-page-muted">
-            {" "}
-            {[results[0].course_name, results[0].class_name]
-              .filter(Boolean)
-              .join(" · ")}
-          </p>
-        )}
+        {results.length > 0 && (() => {
+        const pair = mostCommon(
+          results.map((r) => ({
+            ...r,
+            combo: [r.course_name, r.class_name].filter(Boolean).join(" · ") || null,
+          })) as never,
+          "combo" as never,
+        );
+        return pair ? <p className="text-sm mt-1 text-page-muted">{pair}</p> : null;
+      })()}
       </header>
 
       <PersonRiderProfile personId={id} />
