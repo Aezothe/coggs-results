@@ -154,7 +154,6 @@ export async function PersonStagePerformance({
   return (
     <details
       className="mt-4 mb-8 group rounded-lg p-4 border bg-surface border-surface-border"
-      open
     >
       <summary className="cursor-pointer select-none flex items-center justify-between py-2 list-none">
         <div className="flex items-center gap-2">

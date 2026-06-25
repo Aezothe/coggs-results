@@ -3,6 +3,7 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { PersonStagePerformance } from "./PersonStagePerformance";
 import { PersonRiderProfile } from "./PersonRiderProfile";
 import { PersonResultsSection } from "./PersonResultsSection";
+import { PersonTopTags } from "./PersonTopTags";
 
 export const dynamic = "force-dynamic";
 
@@ -126,6 +127,7 @@ export default async function PersonPage({
       </header>
 
       <PersonRiderProfile personId={id} />
+      <PersonTopTags personId={id} />
       <PersonStagePerformance personId={id} />
       {results.length > 0 && <PersonResultsSection results={results} />}
 

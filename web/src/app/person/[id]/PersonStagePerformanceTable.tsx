@@ -4,7 +4,6 @@ import { useCallback } from "react";
 import Link from "next/link";
 import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
-import { TagPill } from "@/components/TagPill";
 import type { StageSummary } from "./PersonStagePerformance";
 
 type SortKey = "stage_name" | "best_percentile" | "avg_percentile" | "rides";
@@ -75,17 +74,9 @@ export function PersonStagePerformanceTable({
           {sorted.map((s) => (
             <tr key={s.stage_id} className="hover:bg-surface-hover">
               <td className="px-3 py-2 align-top">
-                <Link href={`/stages/${s.stage_id}`} className="text-surface-foreground hover:underline"
-                >
+                <Link href={ `/stages/${s.stage_id}`}>
                   {s.stage_name}
                 </Link>
-                {s.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    {s.tags.map((t) => (
-                      <TagPill key={t.id} id={t.id} name={t.name} />
-                    ))}
-                  </div>
-                )}
               </td>
               <td className="px-3 py-2 text-right tabular-nums align-top text-surface-foreground">
                 {(s.best_percentile * 100).toFixed(1)}%
