@@ -9,31 +9,34 @@
   --color-success: #10b981;
   --color-success-hover: #059669;
 
-  --color-accent-1: #cc701b; /* power / left side of slider */
-  --color-accent-2: #4b7fbe; /* endurance / right side of slider */
+  --color-accent-1: #cc701b;
+  --color-accent-2: #4b7fbe;
 
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
 
   /* === Surfaces === */
-  --color-background: #1a2540; /* page background */
+  --color-background: #1a2540;
   --color-surface: #ffffff;
   --color-surface-muted: #f9fafb;
   --color-surface-strong: #f3f4f6;
-  --color-card: #243150;       /* card body */
-  --color-card-border: #2f3d63; /* card border */
+  --color-card: #243150;
+  --color-card-border: #2f3d63;
 
   /* === Text === */
-  --color-text: #f3f4f6;        /* primary body text, light on dark */
+  --color-text: #f3f4f6;
   --color-text-on-card: #f3f4f6;
   --color-text-muted: #9ca3af;
   --color-text-faint: #6b7280;
-  --color-text-on-light: #111827; /* dark text for white surfaces */
+  --color-text-on-light: #111827;
+  --color-text-on-light-muted: #6b7280;
 
   /* === Borders === */
   --color-border: #2f3d63;
   --color-border-soft: #243150;
   --color-border-strong: #475569;
+  --color-border-on-light: #e5e7eb;
+  --color-border-on-light-strong: #d1d5db;
 
   /* === Marker / slider neutrals === */
   --color-marker-stroke: #111827;
@@ -56,6 +59,7 @@
   --color-text-muted: var(--color-text-muted);
   --color-text-faint: var(--color-text-faint);
   --color-text-on-light: var(--color-text-on-light);
+  --color-text-on-light-muted: var(--color-text-on-light-muted);
 
   /* Brand */
   --color-primary: var(--color-primary);
@@ -72,6 +76,8 @@
   --color-border: var(--color-border);
   --color-border-soft: var(--color-border-soft);
   --color-border-strong: var(--color-border-strong);
+  --color-border-on-light: var(--color-border-on-light);
+  --color-border-on-light-strong: var(--color-border-on-light-strong);
 
   /* Fonts */
   --font-sans: var(--font-geist-sans);

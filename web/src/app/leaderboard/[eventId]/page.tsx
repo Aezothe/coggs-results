@@ -170,8 +170,8 @@ export default async function LeaderboardPage({
     class?: string;
     splits?: string;
     stages?: string;
-    riders?: string;     
-    compare?: string;    
+    riders?: string;
+    compare?: string;
   }>;
 }) {
   const { eventId } = await params;
@@ -220,22 +220,22 @@ export default async function LeaderboardPage({
     sp.riders && sp.riders.length > 0
       ? sp.riders.split(",").filter(Boolean)
       : [];
-
   const initialCompareOnly = sp.compare === "1";
+
   return (
     <main className="p-6 max-w-6xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href="/events" className="text-gray-900 hover:underline">
+        <Link href="/events" className="text-text hover:underline">
           ← All events
         </Link>
       </nav>
 
-      <h1 className="text-2xl font-semibold mb-1">{event.name}</h1>
+      <h1 className="text-2xl font-semibold mb-1 text-text">{event.name}</h1>
 
       {(event.event_type || eventTags.length > 0) && (
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {event.event_type && (
-            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded bg-gray-200 text-gray-800 font-medium">
+            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-surface-strong text-text-on-light">
               {event.event_type}
             </span>
           )}
@@ -245,25 +245,29 @@ export default async function LeaderboardPage({
         </div>
       )}
 
-      <p className="text-sm text-gray-500 mb-6">{event.event_date ?? ""}</p>
+      <p className="text-sm mb-6 text-text-muted">{event.event_date ?? ""}</p>
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && (
+        <p className="mb-4 text-danger">Error: {errorMsg}</p>
+      )}
 
       {!errorMsg && (
-        <StandingsTable
-        standings={standings}
-        stageTimes={stageTimes}
-        splitTimes={splitTimes}
-        courses={courses}
-        classes={classes}
-        initialCourse={initialCourse}
-        initialClass={initialClass}
-        initialShowSplits={initialShowSplits}
-        initialSelectedStageIds={initialSelectedStageIds}
-        initialSelectedRiderIds={initialSelectedRiderIds}     // new
-        initialCompareOnly={initialCompareOnly}               // new
-        eventId={eventId}
-      />
+        <div className="rounded-lg p-4 border bg-surface border-card-border">
+          <StandingsTable
+            standings={standings}
+            stageTimes={stageTimes}
+            splitTimes={splitTimes}
+            courses={courses}
+            classes={classes}
+            initialCourse={initialCourse}
+            initialClass={initialClass}
+            initialShowSplits={initialShowSplits}
+            initialSelectedStageIds={initialSelectedStageIds}
+            initialSelectedRiderIds={initialSelectedRiderIds}
+            initialCompareOnly={initialCompareOnly}
+            eventId={eventId}
+          />
+        </div>
       )}
     </main>
   );
