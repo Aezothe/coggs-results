@@ -15,8 +15,8 @@ export function TagPill({
     "inline-flex items-center text-xs px-2 py-0.5 rounded transition-colors";
   const colors =
     emphasis === "strong"
-      ? "bg-gray-200 text-gray-800 font-medium hover:bg-gray-300"
-      : "bg-gray-100 text-gray-700 hover:bg-gray-200";
+      ? "bg-surface-border-strong text-surface-foreground font-medium hover:bg-surface-emphasis"
+      : "bg-surface-emphasis text-surface-foreground hover:bg-surface-border-strong";
 
   return (
     <Link href={`/terrain/${id}`}

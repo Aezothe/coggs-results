@@ -25,15 +25,15 @@ export function SortableHeader<K extends string>({
   return (
     <th
       onClick={() => onSort(sortKey)}
-      className={`cursor-pointer select-none px-3 py-2 sticky top-0 bg-gray-100 ${
+      className={`cursor-pointer select-none px-3 py-2 sticky top-0 bg-surface-emphasis ${
         align === "right" ? "text-right" : "text-left"
-      } ${isActive ? "text-gray-900" : "text-gray-700"} ${className}`}
+      } ${isActive ? "text-surface-foreground" : "text-surface-muted"} ${className}`}
     >
       <span className="inline-flex items-center gap-1">
         {label}
         <span
           className={`text-xs ${
-            isActive ? "text-gray-500" : "text-transparent"
+            isActive ? "text-surface-muted" : "text-transparent"
           }`}
         >
           {arrow || "▲"}

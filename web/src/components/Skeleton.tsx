@@ -9,7 +9,7 @@ export function SkeletonText({
 }) {
   return (
     <div
-      className={`${height} ${width} bg-gray-200 rounded animate-pulse ${className}`}
+      className={`${height} ${width} bg-surface-hover rounded animate-pulse ${className}`}
     />
   );
 }
@@ -25,12 +25,12 @@ export function SkeletonHeader() {
 
 export function SkeletonTable({ rows = 5 }: { rows?: number }) {
   return (
-    <div className="border border-gray-200 rounded overflow-hidden mb-6 animate-pulse">
-      <div className="h-10 bg-gray-100 border-b border-gray-200" />
+    <div className="border border-surface-border rounded overflow-hidden mb-6 animate-pulse bg-surface">
+      <div className="h-10 bg-surface-emphasis border-b border-surface-border" />
       {[...Array(rows)].map((_, i) => (
         <div
           key={i}
-          className="h-10 border-b border-gray-100 last:border-b-0"
+          className="h-10 border-b border-surface-border last:border-b-0"
         />
       ))}
     </div>
@@ -39,13 +39,15 @@ export function SkeletonTable({ rows = 5 }: { rows?: number }) {
 
 export function SkeletonChart({ height = "h-64" }: { height?: string }) {
   return (
-    <div
-      className={`${height} bg-gray-100 rounded animate-pulse mb-6`}
-    />
+    <div className={`${height} bg-surface-hover rounded animate-pulse mb-6`} />
   );
 }
 
-export function SkeletonSection({ titleWidth = "w-32" }: { titleWidth?: string }) {
+export function SkeletonSection({
+  titleWidth = "w-32",
+}: {
+  titleWidth?: string;
+}) {
   return (
     <div className="mb-6">
       <SkeletonText width={titleWidth} height="h-6" className="mb-3" />
