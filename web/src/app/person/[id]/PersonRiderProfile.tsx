@@ -531,7 +531,7 @@ function ProfileCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-lg p-4 mb-4 border bg-surface border-surface-border">
+    <div className="rounded-lg p-4 mb-4 border bg-surface border-surface-border max-w-md mx-auto">
       <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-surface-muted">
         {title}
       </h3>
