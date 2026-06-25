@@ -75,7 +75,7 @@ export function PersonStagePerformanceTable({
           {sorted.map((s) => (
             <tr key={s.stage_id} className="hover:bg-surface-hover">
               <td className="px-3 py-2 align-top">
-                <Link href="{`/stages/${s.stage_id}`}-foreground hover:underline"
+                <Link href={`/stages/${s.stage_id}`} className="text-surface-foreground hover:underline"
                 >
                   {s.stage_name}
                 </Link>

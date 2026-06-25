@@ -88,7 +88,7 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
                     {r.is_dnf ? "—" : (r.position ?? "")}
                   </span>
                   <div className="leading-tight">
-                    <Link href="{`/leaderboard/${r.event_id}`}-foreground hover:underline"
+                    <Link href={`/leaderboard/${r.event_id}`} className="text-surface-foreground hover:underline"
                     >
                       {r.event_name ?? ""}
                     </Link>
