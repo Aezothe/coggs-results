@@ -442,7 +442,7 @@ function ProgressBar({ value }: { value: number }) {
         className="h-full transition-all"
         style={{
           width: `${pct}%`,
-          backgroundColor: "var(--color-accent-1)",
+          backgroundColor: "var(--color-accent-2)",
         }}
       />
     </div>

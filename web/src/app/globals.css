@@ -11,14 +11,14 @@
   --color-success: #10b981;        /* emerald for bars */
   --color-success-hover: #059669;
 
-  --color-accent-1: #f59e0b;           /* amber for power side of slider */
-  --color-accent-2: #14b8a6;           /* teal for endurance side of slider */
+  --color-accent-1: #cc701b;           /* amber for power side of slider */
+  --color-accent-2: #4b7fbe;           /* teal for endurance side of slider */
 
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
 
   /* Surfaces */
-  --color-background: #ffffff;
+  --color-background: #1a2540;
   --color-surface: #ffffff;
   --color-surface-muted: #f9fafb;  /* gray-50 — filter strips, hovered rows */
   --color-surface-strong: #f3f4f6; /* gray-100 — table headers */
