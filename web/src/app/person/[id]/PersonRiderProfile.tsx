@@ -4,8 +4,9 @@ const MIN_RIDES_FOR_BAR = 3;
 const MIN_RIDES_FOR_SLIDER = 6;
 const MIN_STAGE_FINISHERS = 3;
 
-// Below this total data point count, the rider enters "New Rider" mode:
-// all bars are shown using field rank only (no personal weighting), no slider.
+// Unified threshold: below this, the rider is in "new rider" mode.
+// New rider mode shows the welcome banner, uses hybrid splits-prefer math,
+// and hides the slider.
 const NEW_RIDER_DATA_THRESHOLD = 6;
 
 const FIELD_WEIGHT = 0.6;
@@ -14,7 +15,6 @@ const PERSONAL_WEIGHT = 0.4;
 type StageRide = {
   person_id: string;
   stage_id: string;
-  stage_segment_id: string | null;
   stage_position_class: number | null;
   finishers_class: number | null;
   time_ms: number | null;
@@ -71,13 +71,15 @@ type RiderSliderValue = {
   position: number;
 };
 
+// Internal per-category source breakdown so new-rider mode can prefer splits.
+// Stage and split percentiles are stored separately, then combined at display time.
 type BarAggregation = {
   person_id: string;
   category_id: string;
   category_name: string;
   display_order: number;
-  avg_percentile: number;
-  rides: number;
+  stage_pcts: number[];
+  split_pcts: number[];
 };
 
 type SliderAggregation = {
@@ -100,12 +102,10 @@ function percentile(position: number, finishers: number): number {
 async function fetchAllData(): Promise<{
   stageRides: StageRide[];
   splitRides: SplitRide[];
-  // canonical stage_id → categories (bar-only)
   categoriesByStage: Map<
     string,
     { id: string; name: string; display_order: number }[]
   >;
-  // per-event split segment id → categories (bar-only)
   categoriesBySplitSegment: Map<
     string,
     { id: string; name: string; display_order: number }[]
@@ -115,9 +115,6 @@ async function fetchAllData(): Promise<{
 }> {
   const supabase = getServiceClient();
 
-  // Stage rides (canonical stage_id is what we group on for tag lookups,
-  // but we need stage_segment_id to know which per-event row to look up
-  // for segment-level tagging if we ever expanded that.)
   const pageSize = 1000;
   const stageRides: StageRide[] = [];
   let offset = 0;
@@ -134,7 +131,6 @@ async function fetchAllData(): Promise<{
       stageRides.push({
         person_id: r.person_id as string,
         stage_id: r.stage_id as string,
-        stage_segment_id: null,
         stage_position_class: r.stage_position_class as number | null,
         finishers_class: r.finishers_class as number | null,
         time_ms: r.time_ms as number | null,
@@ -144,7 +140,6 @@ async function fetchAllData(): Promise<{
     offset += pageSize;
   }
 
-  // Split rides
   const splitRides: SplitRide[] = [];
   offset = 0;
   while (true) {
@@ -170,7 +165,6 @@ async function fetchAllData(): Promise<{
     offset += pageSize;
   }
 
-  // Categories
   const { data: catData, error: catErr } = await supabase
     .from("category")
     .select(
@@ -181,7 +175,6 @@ async function fetchAllData(): Promise<{
   if (catErr) throw new Error(catErr.message);
   const categories = (catData ?? []) as CategoryRow[];
 
-  // Tag → categories
   const { data: tcData, error: tcErr } = await supabase
     .from("tag_category")
     .select("tag_id, category_id");
@@ -192,13 +185,11 @@ async function fetchAllData(): Promise<{
     tagToCategories.get(row.tag_id)!.push(row.category_id);
   }
 
-  // Stage tags (canonical stage_id-keyed)
   const { data: stData, error: stErr } = await supabase
     .from("stage_tag")
     .select("stage_id, tag_id");
   if (stErr) throw new Error(stErr.message);
 
-  // Segment tags (per-event segment_id, used for splits)
   const { data: segData, error: segErr } = await supabase
     .from("segment_tag")
     .select("segment_id, tag_id");
@@ -217,7 +208,6 @@ async function fetchAllData(): Promise<{
     });
   }
 
-  // Build stage_id → categories
   const categoriesByStage = new Map<
     string,
     { id: string; name: string; display_order: number }[]
@@ -235,7 +225,6 @@ async function fetchAllData(): Promise<{
     }
   }
 
-  // Build segment_id → categories (for splits)
   const categoriesBySplitSegment = new Map<
     string,
     { id: string; name: string; display_order: number }[]
@@ -253,7 +242,6 @@ async function fetchAllData(): Promise<{
     }
   }
 
-  // Stage length rank — only stages contribute to length math
   const stageWinningTime = new Map<string, number>();
   const stageFinisherCount = new Map<string, number>();
   for (const r of stageRides) {
@@ -312,9 +300,18 @@ function buildAggregations(
 ): { bars: BarAggregation[]; sliders: SliderAggregation[] } {
   const sliderCats = categories.filter((c) => c.rendering === "slider");
 
+  // person_id -> category_id -> { name, display_order, stage_pcts, split_pcts }
   const barAcc = new Map<
     string,
-    Map<string, { name: string; display_order: number; pcts: number[] }>
+    Map<
+      string,
+      {
+        name: string;
+        display_order: number;
+        stage_pcts: number[];
+        split_pcts: number[];
+      }
+    >
   >();
 
   const sliderAcc = new Map<
@@ -335,7 +332,24 @@ function buildAggregations(
     >
   >();
 
-  // ---- STAGE rides contribute to bars (via stage tags) AND to sliders ----
+  function getOrCreateBarSlot(
+    person_id: string,
+    cat: { id: string; name: string; display_order: number },
+  ) {
+    if (!barAcc.has(person_id)) barAcc.set(person_id, new Map());
+    const inner = barAcc.get(person_id)!;
+    if (!inner.has(cat.id)) {
+      inner.set(cat.id, {
+        name: cat.name,
+        display_order: cat.display_order,
+        stage_pcts: [],
+        split_pcts: [],
+      });
+    }
+    return inner.get(cat.id)!;
+  }
+
+  // STAGES: contribute to stage bars + sliders (length math)
   for (const r of stageRides) {
     if (!r.person_id) continue;
     if (r.time_ms == null) continue;
@@ -344,22 +358,11 @@ function buildAggregations(
     const pct = percentile(r.stage_position_class, r.finishers_class);
 
     const cats = categoriesByStage.get(r.stage_id) ?? [];
-    if (cats.length > 0) {
-      if (!barAcc.has(r.person_id)) barAcc.set(r.person_id, new Map());
-      const inner = barAcc.get(r.person_id)!;
-      for (const c of cats) {
-        if (!inner.has(c.id)) {
-          inner.set(c.id, {
-            name: c.name,
-            display_order: c.display_order,
-            pcts: [],
-          });
-        }
-        inner.get(c.id)!.pcts.push(pct);
-      }
+    for (const c of cats) {
+      const slot = getOrCreateBarSlot(r.person_id, c);
+      slot.stage_pcts.push(pct);
     }
 
-    // Slider math (length-based) only uses stages
     const lengthRank = stageLengthRank.get(r.stage_id);
     if (lengthRank !== undefined) {
       if (!sliderAcc.has(r.person_id)) sliderAcc.set(r.person_id, new Map());
@@ -388,44 +391,37 @@ function buildAggregations(
     }
   }
 
-  // ---- SPLIT rides contribute to bars ONLY if the split itself has tags ----
+  // SPLITS: contribute to split bars only if they're tagged.
   // No parent stage tag inheritance, no slider contribution.
   for (const r of splitRides) {
     if (!r.person_id) continue;
     if (r.time_ms == null) continue;
-    if (r.split_position_class == null || r.split_finishers_class == null) continue;
+    if (r.split_position_class == null || r.split_finishers_class == null)
+      continue;
 
     const cats = categoriesBySplitSegment.get(r.split_segment_id);
     if (!cats || cats.length === 0) continue;
 
     const pct = percentile(r.split_position_class, r.split_finishers_class);
 
-    if (!barAcc.has(r.person_id)) barAcc.set(r.person_id, new Map());
-    const inner = barAcc.get(r.person_id)!;
     for (const c of cats) {
-      if (!inner.has(c.id)) {
-        inner.set(c.id, {
-          name: c.name,
-          display_order: c.display_order,
-          pcts: [],
-        });
-      }
-      inner.get(c.id)!.pcts.push(pct);
+      const slot = getOrCreateBarSlot(r.person_id, c);
+      slot.split_pcts.push(pct);
     }
   }
 
   const bars: BarAggregation[] = [];
   for (const [person_id, catMap] of barAcc.entries()) {
     for (const [category_id, slot] of catMap.entries()) {
-      if (slot.pcts.length === 0) continue;
+      if (slot.stage_pcts.length === 0 && slot.split_pcts.length === 0)
+        continue;
       bars.push({
         person_id,
         category_id,
         category_name: slot.name,
         display_order: slot.display_order,
-        avg_percentile:
-          slot.pcts.reduce((a, b) => a + b, 0) / slot.pcts.length,
-        rides: slot.pcts.length,
+        stage_pcts: slot.stage_pcts,
+        split_pcts: slot.split_pcts,
       });
     }
   }
@@ -451,26 +447,38 @@ function buildAggregations(
   return { bars, sliders };
 }
 
+// Compute average percentile + ride count for a category given the rider's data.
+// New riders prefer splits per category; non-new riders combine stage + splits.
+function categoryAvgAndRides(
+  agg: BarAggregation,
+  newRiderMode: boolean,
+): { avg_percentile: number; rides: number } {
+  let pcts: number[];
+  if (newRiderMode && agg.split_pcts.length > 0) {
+    // Splits take priority for new riders when this category has split data
+    pcts = agg.split_pcts;
+  } else {
+    pcts = [...agg.stage_pcts, ...agg.split_pcts];
+  }
+  const rides = pcts.length;
+  const avg_percentile =
+    rides === 0 ? 0 : pcts.reduce((a, b) => a + b, 0) / rides;
+  return { avg_percentile, rides };
+}
+
 function buildBarValues(
   allBars: BarAggregation[],
   personId: string,
   newRiderMode: boolean,
 ): RiderBarValue[] {
-  // In normal mode: filter to categories where this rider meets MIN_RIDES_FOR_BAR.
-  // In new-rider mode: include every category the rider has any data for, even 1 ride.
-  const riderBars = allBars.filter((a) => {
-    if (a.person_id !== personId) return false;
-    if (!newRiderMode && a.rides < MIN_RIDES_FOR_BAR) return false;
-    return true;
-  });
-  if (riderBars.length === 0) return [];
-
-  // Field rank distribution still uses only well-attested aggregations
+  // Field rank distribution always uses combined data above the bar threshold.
+  // This anchors the comparison to "where the rider sits among everyone."
   const fieldByCat = new Map<string, number[]>();
   for (const a of allBars) {
-    if (a.rides < MIN_RIDES_FOR_BAR) continue;
+    const { avg_percentile, rides } = categoryAvgAndRides(a, false);
+    if (rides < MIN_RIDES_FOR_BAR) continue;
     if (!fieldByCat.has(a.category_id)) fieldByCat.set(a.category_id, []);
-    fieldByCat.get(a.category_id)!.push(a.avg_percentile);
+    fieldByCat.get(a.category_id)!.push(avg_percentile);
   }
   for (const arr of fieldByCat.values()) arr.sort((a, b) => a - b);
 
@@ -485,8 +493,27 @@ function buildBarValues(
     return below / (arr.length - 1);
   }
 
-  // Personal range only meaningful with enough categories
-  const riderVals = riderBars.map((t) => t.avg_percentile);
+  // Resolve this rider's categories with appropriate source preference
+  const riderResolved = allBars
+    .filter((a) => a.person_id === personId)
+    .map((a) => {
+      const { avg_percentile, rides } = categoryAvgAndRides(a, newRiderMode);
+      return { agg: a, avg_percentile, rides };
+    });
+
+  // Filter by threshold:
+  // - New rider mode: include every category the rider has any data for
+  // - Normal mode: only categories meeting MIN_RIDES_FOR_BAR
+  const filtered = riderResolved.filter((r) => {
+    if (r.rides === 0) return false;
+    if (!newRiderMode && r.rides < MIN_RIDES_FOR_BAR) return false;
+    return true;
+  });
+
+  if (filtered.length === 0) return [];
+
+  // Personal range only meaningful with enough categories AND in normal mode
+  const riderVals = filtered.map((r) => r.avg_percentile);
   const riderMin = Math.min(...riderVals);
   const riderMax = Math.max(...riderVals);
   const riderSpread = riderMax - riderMin;
@@ -496,21 +523,20 @@ function buildBarValues(
     return (value - riderMin) / riderSpread;
   }
 
-  return riderBars.map((t) => {
-    const field = fieldRank(t.category_id, t.avg_percentile);
+  return filtered.map((r) => {
+    const field = fieldRank(r.agg.category_id, r.avg_percentile);
     let value: number;
     if (newRiderMode) {
-      // New riders get field-only: vs-yourself isn't meaningful with limited data
       value = field;
     } else {
-      const personal = personalRank(t.avg_percentile);
+      const personal = personalRank(r.avg_percentile);
       value = FIELD_WEIGHT * field + PERSONAL_WEIGHT * personal;
     }
     return {
       kind: "bar" as const,
-      category_id: t.category_id,
-      category_name: t.category_name,
-      display_order: t.display_order,
+      category_id: r.agg.category_id,
+      category_name: r.agg.category_name,
+      display_order: r.agg.display_order,
       value,
     };
   });
@@ -561,6 +587,8 @@ function buildSliderValues(
   });
 }
 
+// Counts a rider's total data points across all categories (stage + split).
+// This is what triggers new-rider mode.
 function totalDataPointsFor(
   allBars: BarAggregation[],
   personId: string,
@@ -568,7 +596,7 @@ function totalDataPointsFor(
   let total = 0;
   for (const a of allBars) {
     if (a.person_id !== personId) continue;
-    total += a.rides;
+    total += a.stage_pcts.length + a.split_pcts.length;
   }
   return total;
 }
@@ -704,18 +732,21 @@ function ProfileCard({
 }
 
 function NewRiderBanner({ dataPoints }: { dataPoints: number }) {
+  const message =
+    dataPoints === 0
+      ? "Race events to see your terrain affinity."
+      : `Showing a preliminary profile based on ${dataPoints} data point${dataPoints === 1 ? "" : "s"}. Race more events for accurate stats.`;
+
   return (
     <div
-      className="surface-dark rounded-lg p-3 mb-8 max-w-md mx-auto text-center text-sm border"
+      className="rounded-lg p-3 mb-8 max-w-md mx-auto text-center text-sm border"
       style={{
         backgroundColor: "var(--color-accent-1)",
         color: "white",
         borderColor: "var(--color-accent-1-hover)",
       }}
     >
-      <span className="font-semibold">Welcome!</span> Showing a preliminary
-      profile based on {dataPoints} data point{dataPoints === 1 ? "" : "s"}.
-      Race more events for accurate stats.
+      <span className="font-semibold">Welcome!</span> {message}
     </div>
   );
 }
@@ -765,13 +796,14 @@ export async function PersonRiderProfile({
     );
   }
 
-  const newRiderMode =
-    dataPoints > 0 && dataPoints < NEW_RIDER_DATA_THRESHOLD;
+  // Unified threshold: anything below = new rider mode
+  const newRiderMode = dataPoints < NEW_RIDER_DATA_THRESHOLD;
 
   const bars = buildBarValues(allBars, personId, newRiderMode);
   const sliders = newRiderMode ? [] : buildSliderValues(allSliders, personId);
 
-  if (bars.length === 0 && sliders.length === 0) return null;
+  // If they're a new rider, always show the banner — even with no bars
+  if (!newRiderMode && bars.length === 0 && sliders.length === 0) return null;
 
   return (
     <section>
