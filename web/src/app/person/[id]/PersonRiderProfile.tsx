@@ -439,8 +439,11 @@ function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-3 w-full rounded bg-gray-200 overflow-hidden">
       <div
-        className="h-full var(--color-accent-1) transition-all"
-        style={{ width: `${pct}%` }}
+        className="h-full transition-all"
+        style={{
+          width: `${pct}%`,
+          backgroundColor: "var(--color-accent-1)",
+        }}
       />
     </div>
   );
