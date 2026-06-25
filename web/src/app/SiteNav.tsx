@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { FeedbackDialog } from "@/components/FeedbackDialog";
@@ -12,10 +13,27 @@ export function SiteNav() {
       <nav className="border-b border-page-border bg-page">
         <div className="max-w-5xl mx-auto px-6 py-3 flex items-center gap-6 text-sm">
           <Link href="/"
-            className="font-semibold text-page-foreground"
+            className="flex items-center gap-3"
+            aria-label="COGGS Results home"
           >
-            COGGS Results
+            <Image
+              src="/logo.svg"
+              alt=""
+              width={40}
+              height={40}
+              priority
+              className="h-10 w-auto"
+            />
+            <div className="leading-none">
+              <div className="font-bold text-page-foreground tracking-wide text-base">
+                COGGS
+              </div>
+              <div className="font-bold text-accent-1 tracking-wide text-base mt-0.5">
+                RESULTS
+              </div>
+            </div>
           </Link>
+
           <div className="flex items-center gap-4 text-page-muted">
             <Link href="/events" className="hover:text-page-foreground">
               Events
@@ -31,7 +49,6 @@ export function SiteNav() {
             </Link>
           </div>
 
-          {/* Right-side actions */}
           <div className="ml-auto">
             <button
               onClick={() => setFeedbackOpen(true)}
