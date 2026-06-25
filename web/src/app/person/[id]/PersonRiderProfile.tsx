@@ -457,7 +457,6 @@ function PreferenceSlider({
 }) {
   const clampedPos = Math.max(0, Math.min(1, position));
 
-  // SVG viewport
   const width = 200;
   const height = 110;
   const cx = width / 2;
@@ -465,17 +464,9 @@ function PreferenceSlider({
   const r = 80;
   const stroke = 16;
 
-  // Half-circle arc: from (cx - r, cy) at 180° to (cx + r, cy) at 0°
-  // Power half: 180° to 90°. Endurance half: 90° to 0°.
-
-  // Path for Power half (left half of arc)
-  const powerPath = `
+  // Single arc, half circle, left to right
+  const arcPath = `
     M ${cx - r} ${cy}
-    A ${r} ${r} 0 0 1 ${cx} ${cy - r}
-  `;
-  // Path for Endurance half (right half of arc)
-  const endurancePath = `
-    M ${cx} ${cy - r}
     A ${r} ${r} 0 0 1 ${cx + r} ${cy}
   `;
 
@@ -493,22 +484,22 @@ function PreferenceSlider({
         viewBox={`0 0 ${width} ${height}`}
         className="overflow-visible"
       >
-        {/* Power half (amber) */}
+        <defs>
+          <linearGradient id="preferenceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+            <stop offset="0%" stopColor="#f59e0b" />
+            <stop offset="50%" stopColor="#a3a3a3" />
+            <stop offset="100%" stopColor="#14b8a6" />
+          </linearGradient>
+        </defs>
+
         <path
-          d={powerPath}
-          stroke="#f59e0b"
+          d={arcPath}
+          stroke="url(#preferenceGradient)"
           strokeWidth={stroke}
           fill="none"
-          strokeLinecap="butt"
+          strokeLinecap="round"
         />
-        {/* Endurance half (teal) */}
-        <path
-          d={endurancePath}
-          stroke="#14b8a6"
-          strokeWidth={stroke}
-          fill="none"
-          strokeLinecap="butt"
-        />
+
         {/* Marker outer ring */}
         <circle
           cx={markerX}
@@ -521,6 +512,7 @@ function PreferenceSlider({
         {/* Marker inner dot */}
         <circle cx={markerX} cy={markerY} r={5} fill="#1f2937" />
       </svg>
+
       <div className="flex justify-between w-full text-xs text-gray-600 -mt-1">
         <span>{lowLabel}</span>
         <span>{highLabel}</span>
