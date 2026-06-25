@@ -608,7 +608,7 @@ export function StandingsTable({
             : "No results match the current course and class selection."}
         </p>
       ) : (
-        <div className="overflow-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-220px)]">
+        <div className="overflow-auto max-h-[calc(100vh-100px)] sm:max-h-[calc(100vh-220px)]">
           <table className="min-w-full text-sm table-auto">
             <thead className="bg-surface-emphasis">
               <tr>
