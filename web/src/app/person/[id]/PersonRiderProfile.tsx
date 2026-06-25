@@ -455,19 +455,73 @@ function PreferenceSlider({
   lowLabel: string;
   highLabel: string;
 }) {
-  const pct = Math.max(0, Math.min(1, position)) * 100;
+  const clampedPos = Math.max(0, Math.min(1, position));
+
+  // SVG viewport
+  const width = 200;
+  const height = 110;
+  const cx = width / 2;
+  const cy = height - 10;
+  const r = 80;
+  const stroke = 16;
+
+  // Half-circle arc: from (cx - r, cy) at 180° to (cx + r, cy) at 0°
+  // Power half: 180° to 90°. Endurance half: 90° to 0°.
+
+  // Path for Power half (left half of arc)
+  const powerPath = `
+    M ${cx - r} ${cy}
+    A ${r} ${r} 0 0 1 ${cx} ${cy - r}
+  `;
+  // Path for Endurance half (right half of arc)
+  const endurancePath = `
+    M ${cx} ${cy - r}
+    A ${r} ${r} 0 0 1 ${cx + r} ${cy}
+  `;
+
+  // Marker position on the arc
+  const angleDeg = 180 - clampedPos * 180;
+  const angleRad = (angleDeg * Math.PI) / 180;
+  const markerX = cx + r * Math.cos(angleRad);
+  const markerY = cy - r * Math.sin(angleRad);
+
   return (
-    <div>
-      <div className="relative h-3 w-full rounded bg-gray-200">
-        {/* Center tick */}
-        <div className="absolute top-0 bottom-0 left-1/2 w-px bg-gray-400" />
-        {/* Marker */}
-        <div
-          className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white shadow"
-          style={{ left: `${pct}%` }}
+    <div className="flex flex-col items-center w-[200px]">
+      <svg
+        width={width}
+        height={height}
+        viewBox={`0 0 ${width} ${height}`}
+        className="overflow-visible"
+      >
+        {/* Power half (amber) */}
+        <path
+          d={powerPath}
+          stroke="#f59e0b"
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="butt"
         />
-      </div>
-      <div className="flex justify-between text-xs text-gray-500 mt-1">
+        {/* Endurance half (teal) */}
+        <path
+          d={endurancePath}
+          stroke="#14b8a6"
+          strokeWidth={stroke}
+          fill="none"
+          strokeLinecap="butt"
+        />
+        {/* Marker outer ring */}
+        <circle
+          cx={markerX}
+          cy={markerY}
+          r={11}
+          fill="white"
+          stroke="#1f2937"
+          strokeWidth={2.5}
+        />
+        {/* Marker inner dot */}
+        <circle cx={markerX} cy={markerY} r={5} fill="#1f2937" />
+      </svg>
+      <div className="flex justify-between w-full text-xs text-gray-600 -mt-1">
         <span>{lowLabel}</span>
         <span>{highLabel}</span>
       </div>
@@ -488,10 +542,7 @@ function BarRow({ entry }: { entry: RiderBarValue }) {
 
 function SliderRow({ entry }: { entry: RiderSliderValue }) {
   return (
-    <div className="grid grid-cols-[100px_1fr] items-start gap-3 mb-2">
-      <div className="text-sm text-gray-700 truncate pt-0.5">
-        {entry.category_name}
-      </div>
+    <div className="flex justify-center my-6">
       <PreferenceSlider
         position={entry.position}
         lowLabel={entry.low_label}
