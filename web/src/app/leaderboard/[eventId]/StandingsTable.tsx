@@ -395,7 +395,7 @@ export function StandingsTable({
 
   const chipBase = "text-xs px-2 py-0.5 rounded border";
   const chipActive =
-    "bg-primary text-white border-primary hover:bg-accent-1";
+    "bg-primary text-white border-accent-1 hover:bg-accent-1-hover";
   const chipInactive =
     "bg-surface text-surface-foreground border-surface-border-strong hover:bg-surface-hover";
 
