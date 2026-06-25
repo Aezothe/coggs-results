@@ -127,9 +127,9 @@ export async function PersonStagePerformance({
 
   if (errorMsg) {
     return (
-      <section className="mt-10">
-        <h2 className="text-lg font-medium mb-3">Stage Performance</h2>
-        <p className="text-red-600 text-sm">Error: {errorMsg}</p>
+      <section className="mt-4">
+        <h2 className="text-lg font-medium mb-3 text-text">Stage Performance</h2>
+        <p className="text-danger text-sm">Error: {errorMsg}</p>
       </section>
     );
   }
@@ -138,9 +138,9 @@ export async function PersonStagePerformance({
 
   if (summaries.length === 0) {
     return (
-      <section className="mt-10">
-        <h2 className="text-lg font-medium mb-3">Stage Performance</h2>
-        <p className="text-sm text-gray-500">
+      <section className="mt-4">
+        <h2 className="text-lg font-medium mb-3 text-text">Stage Performance</h2>
+        <p className="text-sm text-text-muted">
           No stage results yet for this rider.
         </p>
       </section>
@@ -148,23 +148,47 @@ export async function PersonStagePerformance({
   }
 
   return (
-    <details className="mt-10 group" open>
-      <summary className="cursor-pointer select-none flex items-center justify-between py-2 border-b border-gray-200 list-none">
+    <details
+      className="mt-4 mb-8 group rounded-lg p-4 border"
+      style={{
+        backgroundColor: "var(--color-surface)",
+        borderColor: "var(--color-border-on-light)",
+      }}
+      open
+    >
+      <summary
+        className="cursor-pointer select-none flex items-center justify-between py-2 list-none"
+      >
         <div className="flex items-center gap-2">
-          <span className="text-gray-500 text-xs transition-transform group-open:rotate-90">
+          <span
+            className="text-xs transition-transform group-open:rotate-90"
+            style={{ color: "var(--color-text-on-light-muted)" }}
+          >
             ▶
           </span>
-          <h2 className="text-lg font-medium text-gray-900">
+          <h2
+            className="text-lg font-medium"
+            style={{ color: "var(--color-text-on-light)" }}
+          >
             Stage Performance
           </h2>
         </div>
-        <span className="text-sm text-gray-500">
+        <span
+          className="text-sm"
+          style={{ color: "var(--color-text-on-light-muted)" }}
+        >
           {summaries.length} stage{summaries.length === 1 ? "" : "s"}
         </span>
       </summary>
 
-      <div className="pt-4">
-        <p className="text-sm text-gray-500 mb-3">
+      <div
+        className="pt-4 border-t"
+        style={{ borderColor: "var(--color-border-on-light)" }}
+      >
+        <p
+          className="text-sm mb-3"
+          style={{ color: "var(--color-text-on-light-muted)" }}
+        >
           Stages ranked by best finish percentile across all rides.
         </p>
         <PersonStagePerformanceTable summaries={summaries} />
