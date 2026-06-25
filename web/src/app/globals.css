@@ -1,19 +1,77 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* === Color palette === */
+
+  /* Brand colors */
+  --color-primary: #2563eb;        /* main accent, active toggles, links */
+  --color-primary-hover: #1d4ed8;
+  --color-primary-soft: #eff6ff;   /* light tint */
+
+  --color-success: #10b981;        /* emerald for bars */
+  --color-success-hover: #059669;
+
+  --color-accent-1: #f59e0b;           /* amber for power side of slider */
+  --color-accent-2: #14b8a6;           /* teal for endurance side of slider */
+
+  --color-danger: #dc2626;
+  --color-danger-soft: #fef2f2;
+
+  /* Surfaces */
+  --color-background: #ffffff;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f9fafb;  /* gray-50 — filter strips, hovered rows */
+  --color-surface-strong: #f3f4f6; /* gray-100 — table headers */
+
+  /* Text */
+  --color-text: #111827;           /* primary body */
+  --color-text-muted: #6b7280;     /* gray-500, secondary */
+  --color-text-faint: #9ca3af;     /* gray-400, tertiary */
+
+  /* Borders */
+  --color-border: #e5e7eb;         /* gray-200 */
+  --color-border-soft: #f3f4f6;
+  --color-border-strong: #d1d5db;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
+  /* Surfaces */
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-surface-strong: var(--color-surface-strong);
+
+  /* Text */
+  --color-foreground: var(--color-text);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-text-muted);
+  --color-text-faint: var(--color-text-faint);
+
+  /* Brand */
+  --color-primary: var(--color-primary);
+  --color-primary-hover: var(--color-primary-hover);
+  --color-primary-soft: var(--color-primary-soft);
+
+  --color-success: var(--color-success);
+  --color-success-hover: var(--color-success-hover);
+
+  --color-warn: var(--color-warn);
+  --color-info: var(--color-info);
+
+  --color-danger: var(--color-danger);
+  --color-danger-soft: var(--color-danger-soft);
+
+  /* Borders */
+  --color-border: var(--color-border);
+  --color-border-soft: var(--color-border-soft);
+  --color-border-strong: var(--color-border-strong);
+
+  /* Fonts */
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--color-background);
+  color: var(--color-text);
 }

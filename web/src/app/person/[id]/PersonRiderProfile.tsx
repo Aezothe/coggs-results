@@ -439,7 +439,7 @@ function ProgressBar({ value }: { value: number }) {
   return (
     <div className="h-3 w-full rounded bg-gray-200 overflow-hidden">
       <div
-        className="h-full bg-emerald-500 transition-all"
+        className="h-full --color-accent-1 transition-all"
         style={{ width: `${pct}%` }}
       />
     </div>
@@ -486,9 +486,8 @@ function PreferenceSlider({
       >
         <defs>
           <linearGradient id="preferenceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
-            <stop offset="0%" stopColor="#f59e0b" />
-            <stop offset="50%" stopColor="#a3a3a3" />
-            <stop offset="100%" stopColor="#14b8a6" />
+            <stop offset="0%" stopColor="var(--color-accent-1" />
+            <stop offset="100%" stopColor="var(--color-accent-2" />
           </linearGradient>
         </defs>
 
