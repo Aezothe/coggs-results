@@ -601,6 +601,20 @@ function totalDataPointsFor(
   return total;
 }
 
+// Counts a rider's slider data points (rides on length-rankable stages).
+// This is what determines whether the slider can be shown.
+function sliderDataPointsFor(
+  allSliders: SliderAggregation[],
+  personId: string,
+): number {
+  // The slider aggregation already filters to length-ranked stages, so we
+  // just take the max ride count across categories (they're all the same).
+  for (const a of allSliders) {
+    if (a.person_id === personId) return a.rides;
+  }
+  return 0;
+}
+
 function ProgressBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
   return (
@@ -797,7 +811,10 @@ export async function PersonRiderProfile({
   }
 
   // Unified threshold: anything below = new rider mode
-  const newRiderMode = dataPoints < NEW_RIDER_DATA_THRESHOLD;
+const sliderPoints = sliderDataPointsFor(allSliders, personId);
+const newRiderMode =
+  dataPoints < NEW_RIDER_DATA_THRESHOLD ||
+  sliderPoints < MIN_RIDES_FOR_SLIDER;
 
   const bars = buildBarValues(allBars, personId, newRiderMode);
   const sliders = newRiderMode ? [] : buildSliderValues(allSliders, personId);
