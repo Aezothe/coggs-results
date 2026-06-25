@@ -109,15 +109,15 @@ export default async function PersonPage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <header className="mb-6">
-        <div className="text-xs font-semibold uppercase tracking-wider mb-1 text-text-muted">
+        <div className="text-xs font-semibold uppercase tracking-wider mb-1 text-page-muted">
           Rider Profile
         </div>
-        <h1 className="text-3xl font-bold text-text">
+        <h1 className="text-3xl font-bold text-page-foreground">
           {displayName}
         </h1>
         {results.length > 0 && (
-          <p className="text-sm mt-1 text-text-muted">
-            Race Category and Class:{" "}
+          <p className="text-sm mt-1 text-page-muted">
+            {" "}
             {[results[0].course_name, results[0].class_name]
               .filter(Boolean)
               .join(" · ")}
@@ -129,11 +129,9 @@ export default async function PersonPage({
       <PersonStagePerformance personId={id} />
       {results.length > 0 && <PersonResultsSection results={results} />}
 
-      {errorMsg && (
-        <p className="mb-4 text-danger">Error: {errorMsg}</p>
-      )}
+      {errorMsg && <p className="mb-4 text-danger">Error: {errorMsg}</p>}
       {!errorMsg && results.length === 0 && (
-        <p className="text-text-muted">No results found for this person.</p>
+        <p className="text-page-muted">No results found for this person.</p>
       )}
     </main>
   );

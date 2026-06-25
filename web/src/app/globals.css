@@ -1,66 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  /* === Brand === */
+  /* === Brand colors (stable across surfaces) === */
   --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
   --color-primary-soft: #eff6ff;
-
   --color-success: #10b981;
   --color-success-hover: #059669;
-
   --color-accent-1: #cc701b;
   --color-accent-2: #4b7fbe;
-
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
 
-  /* === Surfaces === */
-  --color-background: #1a2540;
-  --color-surface: #ffffff;
-  --color-surface-muted: #f9fafb;
-  --color-surface-strong: #f3f4f6;
-  --color-card: #243150;
-  --color-card-border: #2f3d63;
+  /* === Page-level (outside of any card) === */
+  --color-page: #1a2540;
+  --color-page-foreground: #f3f4f6;
+  --color-page-muted: #9ca3af;
+  --color-page-border: #2f3d63;
 
-  /* === Text === */
-  --color-text: #f3f4f6;
-  --color-text-on-card: #f3f4f6;
-  --color-text-muted: #9ca3af;
-  --color-text-faint: #6b7280;
-  --color-text-on-light: #111827;
-  --color-text-on-light-muted: #6b7280;
+  /* === Surface-level (cards, tables) ===
+     Defaults to LIGHT surface tokens. Apply .surface-dark on any container
+     to redefine these for everything inside. Components reference only
+     these role names, so no component code changes when surface colors flip. */
+  --color-surface: #243154;
+  --color-surface-foreground: #f3f4f6;
+  --color-surface-muted: #6b7280;
+  --color-surface-border: #e5e7eb;
+  --color-surface-border-strong: #d1d5db;
+  --color-surface-hover: #f9fafb;
+  --color-surface-emphasis: #f3f4f6;
 
-  /* === Borders === */
-  --color-border: #2f3d63;
-  --color-border-soft: #243150;
-  --color-border-strong: #475569;
-  --color-border-on-light: #e5e7eb;
-  --color-border-on-light-strong: #d1d5db;
-
-  /* === Marker / slider neutrals === */
+  /* === Marker for SVG slider === */
   --color-marker-stroke: #111827;
   --color-marker-fill: #ffffff;
 }
 
+/* Dark-surface scope: override the surface-* tokens for any container
+   wearing this class. Components inside automatically pick up the dark
+   values without any code change. */
+.surface-dark {
+  --color-surface: #243150;
+  --color-surface-foreground: #f3f4f6;
+  --color-surface-muted: #9ca3af;
+  --color-surface-border: #2f3d63;
+  --color-surface-border-strong: #475569;
+  --color-surface-hover: #2a3a5e;
+  --color-surface-emphasis: #2f3d63;
+}
+
 @theme inline {
-  /* Surfaces */
-  --color-background: var(--color-background);
-  --color-surface: var(--color-surface);
-  --color-surface-muted: var(--color-surface-muted);
-  --color-surface-strong: var(--color-surface-strong);
-  --color-card: var(--color-card);
-  --color-card-border: var(--color-card-border);
-
-  /* Text */
-  --color-foreground: var(--color-text);
-  --color-text: var(--color-text);
-  --color-text-on-card: var(--color-text-on-card);
-  --color-text-muted: var(--color-text-muted);
-  --color-text-faint: var(--color-text-faint);
-  --color-text-on-light: var(--color-text-on-light);
-  --color-text-on-light-muted: var(--color-text-on-light-muted);
-
   /* Brand */
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
@@ -72,12 +60,20 @@
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
 
-  /* Borders */
-  --color-border: var(--color-border);
-  --color-border-soft: var(--color-border-soft);
-  --color-border-strong: var(--color-border-strong);
-  --color-border-on-light: var(--color-border-on-light);
-  --color-border-on-light-strong: var(--color-border-on-light-strong);
+  /* Page */
+  --color-page: var(--color-page);
+  --color-page-foreground: var(--color-page-foreground);
+  --color-page-muted: var(--color-page-muted);
+  --color-page-border: var(--color-page-border);
+
+  /* Surface (resolved by the closest .surface-dark or :root) */
+  --color-surface: var(--color-surface);
+  --color-surface-foreground: var(--color-surface-foreground);
+  --color-surface-muted: var(--color-surface-muted);
+  --color-surface-border: var(--color-surface-border);
+  --color-surface-border-strong: var(--color-surface-border-strong);
+  --color-surface-hover: var(--color-surface-hover);
+  --color-surface-emphasis: var(--color-surface-emphasis);
 
   /* Fonts */
   --font-sans: var(--font-geist-sans);
@@ -85,6 +81,6 @@
 }
 
 body {
-  background: var(--color-background);
-  color: var(--color-text);
+  background: var(--color-page);
+  color: var(--color-page-foreground);
 }

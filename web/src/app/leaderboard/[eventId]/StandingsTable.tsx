@@ -254,9 +254,10 @@ export function StandingsTable({
   }, [riderQuery, scopedRiders, selectedRiderIds]);
 
   const filtered = useMemo(() => {
-    const base = compareOnly && selectedRiderIds.length > 0
-      ? scopedRiders.filter((r) => selectedRiderIds.includes(r.entry_id))
-      : scopedRiders;
+    const base =
+      compareOnly && selectedRiderIds.length > 0
+        ? scopedRiders.filter((r) => selectedRiderIds.includes(r.entry_id))
+        : scopedRiders;
 
     return [...base].sort((a, b) => {
       const ad = !!a.is_dnf;
@@ -375,7 +376,9 @@ export function StandingsTable({
     { key: "position", dir: "asc" },
   );
 
-  const totalInCourse = standings.filter((r) => r.course_name === course).length;
+  const totalInCourse = standings.filter(
+    (r) => r.course_name === course,
+  ).length;
   const ridersShownLabel = `${sorted.length} of ${totalInCourse} riders`;
 
   const filtersExplicitlySet = filtersOpen !== null;
@@ -390,14 +393,14 @@ export function StandingsTable({
       : "block"
     : "block sm:hidden";
 
-  // Reused chip-button styles
   const chipBase = "text-xs px-2 py-0.5 rounded border";
-  const chipActive = "bg-primary text-white border-primary hover:bg-primary-hover";
-  const chipInactive = "bg-surface text-text-on-light border-on-light-strong hover:bg-surface-muted";
+  const chipActive =
+    "bg-primary text-white border-primary hover:bg-primary-hover";
+  const chipInactive =
+    "bg-surface text-surface-foreground border-surface-border-strong hover:bg-surface-hover";
 
   return (
-    <div className="text-text-on-light">
-      {/* Mobile filter toggle */}
+    <div className="text-surface-foreground">
       <div className="mb-3">
         <button
           type="button"
@@ -410,29 +413,28 @@ export function StandingsTable({
                 : !prev,
             )
           }
-          className="flex w-full items-center justify-between gap-2 text-sm border border-on-light rounded px-3 py-2 hover:bg-surface-muted sm:hidden"
+          className="flex w-full items-center justify-between gap-2 text-sm border border-surface-border rounded px-3 py-2 hover:bg-surface-hover sm:hidden"
         >
-          <span className="font-medium text-text-on-light">
+          <span className="font-medium text-surface-foreground">
             {filtersOpen === false || (filtersOpen === null && true)
               ? "Show filters"
               : "Hide filters"}
           </span>
-          <span className="text-text-on-light-muted text-xs">
+          <span className="text-surface-muted text-xs">
             {[course, klass].filter(Boolean).join(" · ") || "All"} ·{" "}
             {ridersShownLabel}
           </span>
         </button>
       </div>
 
-      {/* Filters */}
       <div className={`${filtersBlockClasses} mb-4`}>
         <div className="flex flex-wrap gap-3 mb-3 items-center">
           <label className="flex items-center gap-2 text-sm">
-            <span className="text-text-on-light-muted">Course:</span>
+            <span className="text-surface-muted">Course:</span>
             <select
               value={course}
               onChange={(e) => onCourseChange(e.target.value)}
-              className="border border-on-light-strong rounded px-2 py-1 text-sm bg-surface text-text-on-light"
+              className="border border-surface-border-strong rounded px-2 py-1 text-sm bg-surface text-surface-foreground"
             >
               {courses.map((c) => (
                 <option key={c} value={c}>
@@ -443,11 +445,11 @@ export function StandingsTable({
           </label>
 
           <label className="flex items-center gap-2 text-sm">
-            <span className="text-text-on-light-muted">Class:</span>
+            <span className="text-surface-muted">Class:</span>
             <select
               value={klass}
               onChange={(e) => onClassChange(e.target.value)}
-              className="border border-on-light-strong rounded px-2 py-1 text-sm bg-surface text-text-on-light"
+              className="border border-surface-border-strong rounded px-2 py-1 text-sm bg-surface text-surface-foreground"
             >
               <option value="">All</option>
               {visibleClasses.map((c) => (
@@ -458,14 +460,13 @@ export function StandingsTable({
             </select>
           </label>
 
-          <span className="ml-auto text-sm text-text-on-light-muted self-center">
+          <span className="ml-auto text-sm text-surface-muted self-center">
             {compareOnly && selectedRiderIds.length > 0
               ? `Comparing ${sorted.length} of ${totalInCourse}`
               : ridersShownLabel}
           </span>
         </div>
 
-        {/* Compare riders */}
         <div className="mb-4 text-sm">
           <div className="relative max-w-md">
             <input
@@ -473,20 +474,22 @@ export function StandingsTable({
               placeholder="Compare riders — type a name to add"
               value={riderQuery}
               onChange={(e) => setRiderQuery(e.target.value)}
-              className="border border-on-light-strong rounded px-3 py-1.5 w-full text-sm bg-surface text-text-on-light placeholder:text-text-on-light-muted"
+              className="border border-surface-border-strong rounded px-3 py-1.5 w-full text-sm bg-surface text-surface-foreground placeholder:text-surface-muted"
             />
             {riderMatches.length > 0 && (
-              <ul className="absolute left-0 right-0 top-full mt-1 z-30 border border-on-light bg-surface rounded shadow-md max-h-72 overflow-y-auto">
+              <ul className="absolute left-0 right-0 top-full mt-1 z-30 border border-surface-border bg-surface rounded shadow-md max-h-72 overflow-y-auto">
                 {riderMatches.map((r) => (
                   <li key={r.entry_id}>
                     <button
                       type="button"
                       onClick={() => onAddRider(r.entry_id)}
-                      className="block w-full text-left px-3 py-1.5 hover:bg-surface-muted"
+                      className="block w-full text-left px-3 py-1.5 hover:bg-surface-hover"
                     >
-                      <span className="text-text-on-light">{displayName(r)}</span>
+                      <span className="text-surface-foreground">
+                        {displayName(r)}
+                      </span>
                       {r.class_name && (
-                        <span className="text-text-on-light-muted ml-2 text-xs">
+                        <span className="text-surface-muted ml-2 text-xs">
                           {r.class_name}
                         </span>
                       )}
@@ -505,14 +508,14 @@ export function StandingsTable({
                 return (
                   <span
                     key={entryId}
-                    className="inline-flex items-center gap-1 bg-surface-strong text-text-on-light text-xs px-2 py-0.5 rounded"
+                    className="inline-flex items-center gap-1 bg-surface-emphasis text-surface-foreground text-xs px-2 py-0.5 rounded"
                   >
                     {displayName(row)}
                     <button
                       type="button"
                       aria-label={`Remove ${displayName(row)}`}
                       onClick={() => onRemoveRider(entryId)}
-                      className="text-text-on-light-muted hover:text-text-on-light leading-none ml-0.5"
+                      className="text-surface-muted hover:text-surface-foreground leading-none ml-0.5"
                     >
                       ×
                     </button>
@@ -541,10 +544,9 @@ export function StandingsTable({
           )}
         </div>
 
-        {/* Stages */}
         {stageList.length > 0 && (
           <div className="mb-2 text-sm">
-            <div className="text-text-on-light-muted mb-1">Stages</div>
+            <div className="text-surface-muted mb-1">Stages</div>
             <div className="flex flex-wrap items-center gap-2 mb-2">
               {stageList.map((s) => {
                 const isOn = selectedStageIds.includes(s.stage_id);
@@ -593,12 +595,14 @@ export function StandingsTable({
         )}
       </div>
 
-      <div className={`${collapsedSummaryClasses} mb-3 text-sm text-text-on-light-muted px-1`}>
+      <div
+        className={`${collapsedSummaryClasses} mb-3 text-sm text-surface-muted px-1`}
+      >
         {ridersShownLabel}
       </div>
 
       {sorted.length === 0 ? (
-        <p className="text-text-on-light-muted">
+        <p className="text-surface-muted">
           {compareOnly && selectedRiderIds.length > 0
             ? "No selected riders are in the current course/class filter."
             : "No results match the current course and class selection."}
@@ -606,7 +610,7 @@ export function StandingsTable({
       ) : (
         <div className="overflow-auto max-h-[calc(100vh-140px)] sm:max-h-[calc(100vh-220px)]">
           <table className="min-w-full text-sm table-auto">
-            <thead className="bg-surface-strong">
+            <thead className="bg-surface-emphasis">
               <tr>
                 <SortableHeader<SortKey>
                   label="Rider"
@@ -614,7 +618,7 @@ export function StandingsTable({
                   currentKey={sort.key}
                   currentDir={sort.dir}
                   onSort={onSort}
-                  className="sticky left-0 bg-surface-strong z-20 min-w-[180px]"
+                  className="sticky left-0 bg-surface-emphasis z-20 min-w-[180px]"
                 />
 
                 {visibleStages.map((s) => {
@@ -628,7 +632,7 @@ export function StandingsTable({
                           <span>
                             {s.name}
                             {splits.length > 0 && (
-                              <span className="block text-xs font-normal text-text-on-light-muted">
+                              <span className="block text-xs font-normal text-surface-muted">
                                 stage
                               </span>
                             )}
@@ -639,13 +643,13 @@ export function StandingsTable({
                         currentDir={sort.dir}
                         onSort={onSort}
                         align="right"
-                        className="min-w-[90px] border-l border-on-light"
+                        className="min-w-[90px] border-l border-surface-border"
                       />
                       {splits.map((sp) => (
                         <SortableHeader<SortKey>
                           key={`split-${sp.split_segment_id}`}
                           label={
-                            <span className="text-xs font-normal text-text-on-light-muted">
+                            <span className="text-xs font-normal text-surface-muted">
                               {sp.split_name}
                             </span>
                           }
@@ -668,7 +672,7 @@ export function StandingsTable({
                   currentDir={sort.dir}
                   onSort={onSort}
                   align="right"
-                  className="min-w-[90px] border-l border-on-light"
+                  className="min-w-[90px] border-l border-surface-border"
                 />
                 <SortableHeader<SortKey>
                   label="Back"
@@ -682,28 +686,31 @@ export function StandingsTable({
               </tr>
             </thead>
 
-            <tbody className="divide-y divide-on-light">
+            <tbody className="divide-y divide-surface-border">
               {sorted.map((row) => (
-                <tr key={row.entry_id} className="group hover:bg-surface-muted">
-                  <td className="px-3 py-2 align-top sticky left-0 bg-surface group-hover:bg-surface-muted z-10 min-w-[180px]">
+                <tr
+                  key={row.entry_id}
+                  className="group hover:bg-surface-hover"
+                >
+                  <td className="px-3 py-2 align-top sticky left-0 bg-surface group-hover:bg-surface-hover z-10 min-w-[180px]">
                     <div className="flex items-baseline gap-2">
-                      <span className="text-text-on-light-muted tabular-nums text-xs w-6 shrink-0">
+                      <span className="text-surface-muted tabular-nums text-xs w-6 shrink-0">
                         {row.is_dnf ? "—" : (row.position ?? "")}
                       </span>
                       <div className="leading-tight">
                         {row.person_id ? (
                           <Link
-                            href={`/person/${row.person_id}`}
-                            className="text-text-on-light hover:underline"
+                          href={`/person/${row.person_id}`}
+                            className="text-surface-foreground hover:underline"
                           >
                             {row.first_name} {row.last_name}
                           </Link>
                         ) : (
-                          <span className="text-text-on-light">
+                          <span className="text-surface-foreground">
                             {row.first_name} {row.last_name}
                           </span>
                         )}
-                        <div className="text-xs text-text-on-light-muted">
+                        <div className="text-xs text-surface-muted">
                           {[row.course_name, row.class_name]
                             .filter(Boolean)
                             .join(" · ")}
@@ -720,14 +727,14 @@ export function StandingsTable({
                     const stagePos = stagePositionFor(stage, classSelected);
                     return (
                       <React.Fragment key={`stage-group-${s.stage_id}`}>
-                        <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-on-light">
+                        <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
                           <div className="leading-tight">
-                            <div className="text-text-on-light">
+                            <div className="text-surface-foreground">
                               {stage?.time_ms
                                 ? formatTime(stage.time_ms)
                                 : ""}
                             </div>
-                            <div className="text-xs text-text-on-light-muted">
+                            <div className="text-xs text-surface-muted">
                               {stagePos ?? ""}
                             </div>
                           </div>
@@ -743,15 +750,15 @@ export function StandingsTable({
                           return (
                             <td
                               key={`split-${sp.split_segment_id}`}
-                              className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-muted"
+                              className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover"
                             >
                               <div className="leading-tight">
-                                <div className="text-text-on-light">
+                                <div className="text-surface-foreground">
                                   {split?.time_ms
                                     ? formatTime(split.time_ms)
                                     : ""}
                                 </div>
-                                <div className="text-xs text-text-on-light-muted">
+                                <div className="text-xs text-surface-muted">
                                   {splitPos ?? ""}
                                 </div>
                               </div>
@@ -762,14 +769,14 @@ export function StandingsTable({
                     );
                   })}
 
-                  <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-on-light">
-                    <div className="text-text-on-light">
+                  <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
+                    <div className="text-surface-foreground">
                       {row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}
                     </div>
                     <div className="text-xs">&nbsp;</div>
                   </td>
 
-                  <td className="px-4 py-2 text-right tabular-nums text-text-on-light-muted align-top min-w-[90px]">
+                  <td className="px-4 py-2 text-right tabular-nums text-surface-muted align-top min-w-[90px]">
                     <div>
                       {row.is_dnf || row.time_back_ms == null
                         ? ""

@@ -80,7 +80,10 @@ function percentile(position: number, finishers: number): number {
 
 async function fetchAllData(): Promise<{
   rides: StageRide[];
-  categoriesByStage: Map<string, { id: string; name: string; display_order: number }[]>;
+  categoriesByStage: Map<
+    string,
+    { id: string; name: string; display_order: number }[]
+  >;
   categories: CategoryRow[];
   stageLengthRank: Map<string, number>;
 }> {
@@ -91,7 +94,9 @@ async function fetchAllData(): Promise<{
   while (true) {
     const { data, error } = await supabase
       .from("event_stage_times")
-      .select("person_id, stage_id, stage_position_class, finishers_class, time_ms")
+      .select(
+        "person_id, stage_id, stage_position_class, finishers_class, time_ms",
+      )
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
@@ -102,7 +107,9 @@ async function fetchAllData(): Promise<{
 
   const { data: catData, error: catErr } = await supabase
     .from("category")
-    .select("id, name, display_order, rendering, slider_low_label, slider_high_label")
+    .select(
+      "id, name, display_order, rendering, slider_low_label, slider_high_label",
+    )
     .eq("category_type", "terrain")
     .order("display_order", { ascending: true });
   if (catErr) throw new Error(catErr.message);
@@ -123,7 +130,10 @@ async function fetchAllData(): Promise<{
     .select("stage_id, tag_id");
   if (stErr) throw new Error(stErr.message);
 
-  const categoryById = new Map<string, { id: string; name: string; display_order: number }>();
+  const categoryById = new Map<
+    string,
+    { id: string; name: string; display_order: number }
+  >();
   for (const c of categories) {
     if (c.rendering !== "bar") continue;
     categoryById.set(c.id, {
@@ -133,11 +143,15 @@ async function fetchAllData(): Promise<{
     });
   }
 
-  const categoriesByStage = new Map<string, { id: string; name: string; display_order: number }[]>();
+  const categoriesByStage = new Map<
+    string,
+    { id: string; name: string; display_order: number }[]
+  >();
   for (const row of (stData ?? []) as StageTagRow[]) {
     const cats = tagToCategories.get(row.tag_id);
     if (!cats) continue;
-    if (!categoriesByStage.has(row.stage_id)) categoriesByStage.set(row.stage_id, []);
+    if (!categoriesByStage.has(row.stage_id))
+      categoriesByStage.set(row.stage_id, []);
     const existing = categoriesByStage.get(row.stage_id)!;
     for (const catId of cats) {
       const cat = categoryById.get(catId);
@@ -150,7 +164,10 @@ async function fetchAllData(): Promise<{
   const stageFinisherCount = new Map<string, number>();
   for (const r of rides) {
     if (r.time_ms == null) continue;
-    stageFinisherCount.set(r.stage_id, (stageFinisherCount.get(r.stage_id) ?? 0) + 1);
+    stageFinisherCount.set(
+      r.stage_id,
+      (stageFinisherCount.get(r.stage_id) ?? 0) + 1,
+    );
     const current = stageWinningTime.get(r.stage_id);
     if (current === undefined || r.time_ms < current) {
       stageWinningTime.set(r.stage_id, r.time_ms);
@@ -180,13 +197,20 @@ async function fetchAllData(): Promise<{
 
 function buildAggregations(
   rides: StageRide[],
-  categoriesByStage: Map<string, { id: string; name: string; display_order: number }[]>,
+  categoriesByStage: Map<
+    string,
+    { id: string; name: string; display_order: number }[]
+  >,
   categories: CategoryRow[],
   stageLengthRank: Map<string, number>,
 ): { bars: BarAggregation[]; sliders: SliderAggregation[] } {
   const sliderCats = categories.filter((c) => c.rendering === "slider");
 
-  const barAcc = new Map<string, Map<string, { name: string; display_order: number; pcts: number[] }>>();
+  const barAcc = new Map<
+    string,
+    Map<string, { name: string; display_order: number; pcts: number[] }>
+  >();
+
   const sliderAcc = new Map<
     string,
     Map<
@@ -218,7 +242,11 @@ function buildAggregations(
       const inner = barAcc.get(r.person_id)!;
       for (const c of cats) {
         if (!inner.has(c.id)) {
-          inner.set(c.id, { name: c.name, display_order: c.display_order, pcts: [] });
+          inner.set(c.id, {
+            name: c.name,
+            display_order: c.display_order,
+            pcts: [],
+          });
         }
         inner.get(c.id)!.pcts.push(pct);
       }
@@ -349,7 +377,8 @@ function buildSliderValues(
   const fieldDiffsByCat = new Map<string, number[]>();
   for (const a of allSliders) {
     if (a.rides < MIN_RIDES_FOR_SLIDER) continue;
-    if (!fieldDiffsByCat.has(a.category_id)) fieldDiffsByCat.set(a.category_id, []);
+    if (!fieldDiffsByCat.has(a.category_id))
+      fieldDiffsByCat.set(a.category_id, []);
     fieldDiffsByCat.get(a.category_id)!.push(a.high_score - a.low_score);
   }
 
@@ -362,11 +391,11 @@ function buildSliderValues(
     if (fieldDiffs.length >= 2) {
       const mean = fieldDiffs.reduce((a, b) => a + b, 0) / fieldDiffs.length;
       const variance =
-        fieldDiffs.reduce((s, d) => s + (d - mean) ** 2, 0) / fieldDiffs.length;
+        fieldDiffs.reduce((s, d) => s + (d - mean) ** 2, 0) /
+        fieldDiffs.length;
       stddev = Math.sqrt(variance);
       if (stddev < 0.01) stddev = 0.01;
     }
-
     const range = PEG_STDDEVS * stddev;
     const normalized = (myDiff + range) / (2 * range);
     return {
@@ -384,10 +413,7 @@ function buildSliderValues(
 function ProgressBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
   return (
-    <div
-      className="h-3 w-full rounded overflow-hidden"
-      style={{ backgroundColor: "var(--color-border-strong)" }}
-    >
+    <div className="h-3 w-full rounded overflow-hidden bg-surface-border-strong">
       <div
         className="h-full transition-all"
         style={{
@@ -433,7 +459,13 @@ function PreferenceSlider({
         className="overflow-visible"
       >
         <defs>
-          <linearGradient id="preferenceGradient" x1="0%" y1="0%" x2="100%" y2="0%">
+          <linearGradient
+            id="preferenceGradient"
+            x1="0%"
+            y1="0%"
+            x2="100%"
+            y2="0%"
+          >
             <stop offset="0%" stopColor="var(--color-accent-1)" />
             <stop offset="100%" stopColor="var(--color-accent-2)" />
           </linearGradient>
@@ -460,10 +492,7 @@ function PreferenceSlider({
           fill="var(--color-marker-stroke)"
         />
       </svg>
-      <div
-        className="flex justify-between w-full text-xs -mt-1"
-        style={{ color: "var(--color-text-on-card)" }}
-      >
+      <div className="flex justify-between w-full text-xs -mt-1 text-surface-foreground">
         <span>{lowLabel}</span>
         <span>{highLabel}</span>
       </div>
@@ -474,10 +503,7 @@ function PreferenceSlider({
 function BarRow({ entry }: { entry: RiderBarValue }) {
   return (
     <div className="grid grid-cols-[100px_1fr] items-center gap-3 mb-2">
-      <div
-        className="text-sm truncate"
-        style={{ color: "var(--color-text-on-card)" }}
-      >
+      <div className="text-sm truncate text-surface-foreground">
         {entry.category_name}
       </div>
       <ProgressBar value={entry.value} />
@@ -505,17 +531,8 @@ function ProfileCard({
   children: React.ReactNode;
 }) {
   return (
-    <div
-      className="rounded-lg p-4 mb-4 border"
-      style={{
-        backgroundColor: "var(--color-card)",
-        borderColor: "var(--color-card-border)",
-      }}
-    >
-      <h3
-        className="text-sm font-semibold uppercase tracking-wide mb-3"
-        style={{ color: "var(--color-text-muted)" }}
-      >
+    <div className="rounded-lg p-4 mb-4 border bg-surface border-surface-border">
+      <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-surface-muted">
         {title}
       </h3>
       {children}
@@ -550,15 +567,10 @@ export async function PersonRiderProfile({
   if (errorMsg) {
     return (
       <section className="mb-8">
-        <h2
-          className="text-lg font-medium mb-3"
-          style={{ color: "var(--color-text)" }}
-        >
+        <h2 className="text-lg font-medium mb-3 text-page-foreground">
           Rider profile
         </h2>
-        <p className="text-sm" style={{ color: "var(--color-danger)" }}>
-          Error: {errorMsg}
-        </p>
+        <p className="text-sm text-danger">Error: {errorMsg}</p>
       </section>
     );
   }
@@ -577,7 +589,7 @@ export async function PersonRiderProfile({
           ))}
         </ProfileCard>
       )}
-  
+
       {sliders.length > 0 && (
         <ProfileCard title="Rider Type">
           {sliders.map((entry) => (

@@ -76,71 +76,33 @@ export function PersonResultsSection({
   const summaryText = `${raceCount} race${raceCount === 1 ? "" : "s"}`;
 
   return (
-    <details
-      className="mb-8 group rounded-lg p-4 border"
-      style={{
-        backgroundColor: "var(--color-surface)",
-        borderColor: "var(--color-border-on-light)",
-      }}
-    >
-      <summary
-        className="cursor-pointer select-none flex items-center justify-between py-2 list-none"
-      >
+    <details className="mb-8 group rounded-lg p-4 border bg-surface border-surface-border">
+      <summary className="cursor-pointer select-none flex items-center justify-between py-2 list-none">
         <div className="flex items-center gap-2">
-          <span
-            className="text-xs transition-transform group-open:rotate-90"
-            style={{ color: "var(--color-text-on-light-muted)" }}
-          >
+          <span className="text-xs transition-transform group-open:rotate-90 text-surface-muted">
             ▶
           </span>
-          <h2
-            className="text-lg font-medium"
-            style={{ color: "var(--color-text-on-light)" }}
-          >
+          <h2 className="text-lg font-medium text-surface-foreground">
             Race Results
           </h2>
         </div>
-        <span
-          className="text-sm"
-          style={{ color: "var(--color-text-on-light-muted)" }}
-        >
-          {summaryText}
-        </span>
+        <span className="text-sm text-surface-muted">{summaryText}</span>
       </summary>
 
-      <div
-        className="pt-4 border-t"
-        style={{ borderColor: "var(--color-border-on-light)" }}
-      >
+      <div className="pt-4 border-t border-surface-border">
         <PercentileChart results={filtered} />
 
-        <div
-          className="flex flex-wrap items-center gap-3 my-4 text-sm border-y py-3 px-3 rounded"
-          style={{
-            backgroundColor: "var(--color-surface-muted)",
-            borderColor: "var(--color-border-on-light)",
-          }}
-        >
-          <span
-            className="text-xs uppercase tracking-wide font-medium"
-            style={{ color: "var(--color-text-on-light-muted)" }}
-          >
+        <div className="flex flex-wrap items-center gap-3 my-4 text-sm border-y py-3 px-3 rounded bg-surface-hover border-surface-border">
+          <span className="text-xs uppercase tracking-wide font-medium text-surface-muted">
             Filter
           </span>
 
           <label className="flex items-center gap-2">
-            <span style={{ color: "var(--color-text-on-light-muted)" }}>
-              Course:
-            </span>
+            <span className="text-surface-muted">Course:</span>
             <select
               value={course}
               onChange={(e) => onCourseChange(e.target.value)}
-              className="rounded px-2 py-1 text-sm border"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                borderColor: "var(--color-border-on-light-strong)",
-                color: "var(--color-text-on-light)",
-              }}
+              className="rounded px-2 py-1 text-sm border bg-surface border-surface-border-strong text-surface-foreground"
             >
               <option value="">All</option>
               {courses.map((c) => (
@@ -152,18 +114,11 @@ export function PersonResultsSection({
           </label>
 
           <label className="flex items-center gap-2">
-            <span style={{ color: "var(--color-text-on-light-muted)" }}>
-              Class:
-            </span>
+            <span className="text-surface-muted">Class:</span>
             <select
               value={klass}
               onChange={(e) => onClassChange(e.target.value)}
-              className="rounded px-2 py-1 text-sm border"
-              style={{
-                backgroundColor: "var(--color-surface)",
-                borderColor: "var(--color-border-on-light-strong)",
-                color: "var(--color-text-on-light)",
-              }}
+              className="rounded px-2 py-1 text-sm border bg-surface border-surface-border-strong text-surface-foreground"
             >
               <option value="">All</option>
               {classes.map((c) => (
@@ -178,17 +133,13 @@ export function PersonResultsSection({
             <button
               type="button"
               onClick={onClear}
-              className="hover:underline"
-              style={{ color: "var(--color-primary)" }}
+              className="text-primary hover:underline"
             >
               Clear filters
             </button>
           )}
 
-          <span
-            className="ml-auto"
-            style={{ color: "var(--color-text-on-light-muted)" }}
-          >
+          <span className="ml-auto text-surface-muted">
             {filtered.length} of {results.length}
           </span>
         </div>

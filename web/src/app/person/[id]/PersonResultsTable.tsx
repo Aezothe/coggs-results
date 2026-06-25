@@ -41,16 +41,16 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
 
   if (results.length === 0) {
     return (
-      <p className="text-sm text-text-on-light-muted">
+      <p className="text-sm text-surface-muted">
         No results match the current filters.
       </p>
     );
   }
 
   return (
-    <div className="overflow-x-auto text-text-on-light">
+    <div className="overflow-x-auto text-surface-foreground">
       <table className="min-w-full text-sm">
-        <thead className="bg-surface-strong">
+        <thead className="bg-surface-emphasis">
           <tr>
             <SortableHeader<SortKey>
               label="Date"
@@ -76,31 +76,31 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
             />
           </tr>
         </thead>
-        <tbody className="divide-y divide-on-light">
+        <tbody className="divide-y divide-surface-border">
           {sorted.map((r) => (
-            <tr key={r.entry_id} className="hover:bg-surface-muted">
-              <td className="px-3 py-2 text-text-on-light-muted align-top whitespace-nowrap">
+            <tr key={r.entry_id} className="hover:bg-surface-hover">
+              <td className="px-3 py-2 text-surface-muted align-top whitespace-nowrap">
                 {formatDate(r.event_date)}
               </td>
               <td className="px-3 py-2 align-top">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-text-on-light-muted tabular-nums text-xs w-6 shrink-0">
+                  <span className="text-surface-muted tabular-nums text-xs w-6 shrink-0">
                     {r.is_dnf ? "—" : (r.position ?? "")}
                   </span>
                   <div className="leading-tight">
-                    <Link
-                      href={`/leaderboard/${r.event_id}`}
-                      className="text-text-on-light hover:underline"
+                    <Link href="{`/leaderboard/${r.event_id}`}-foreground hover:underline"
                     >
                       {r.event_name ?? ""}
                     </Link>
-                    <div className="text-xs text-text-on-light-muted">
-                      {[r.course_name, r.class_name].filter(Boolean).join(" · ")}
+                    <div className="text-xs text-surface-muted">
+                      {[r.course_name, r.class_name]
+                        .filter(Boolean)
+                        .join(" · ")}
                     </div>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2 text-right tabular-nums align-top text-text-on-light">
+              <td className="px-3 py-2 text-right tabular-nums align-top text-surface-foreground">
                 {r.percentile != null
                   ? `${(r.percentile * 100).toFixed(1)}%`
                   : ""}

@@ -34,9 +34,9 @@ export function PersonStagePerformanceTable({
   );
 
   return (
-    <div className="overflow-x-auto text-text-on-light">
+    <div className="overflow-x-auto text-surface-foreground">
       <table className="min-w-full text-sm">
-        <thead className="bg-surface-strong">
+        <thead className="bg-surface-emphasis">
           <tr>
             <SortableHeader<SortKey>
               label="Stage"
@@ -71,13 +71,11 @@ export function PersonStagePerformanceTable({
             />
           </tr>
         </thead>
-        <tbody className="divide-y divide-on-light">
+        <tbody className="divide-y divide-surface-border">
           {sorted.map((s) => (
-            <tr key={s.stage_id} className="hover:bg-surface-muted">
+            <tr key={s.stage_id} className="hover:bg-surface-hover">
               <td className="px-3 py-2 align-top">
-                <Link
-                  href={`/stages/${s.stage_id}`}
-                  className="text-text-on-light hover:underline"
+                <Link href="{`/stages/${s.stage_id}`}-foreground hover:underline"
                 >
                   {s.stage_name}
                 </Link>
@@ -89,13 +87,13 @@ export function PersonStagePerformanceTable({
                   </div>
                 )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums align-top text-text-on-light">
+              <td className="px-3 py-2 text-right tabular-nums align-top text-surface-foreground">
                 {(s.best_percentile * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-text-on-light-muted align-top">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted align-top">
                 {(s.avg_percentile * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-text-on-light-muted align-top">
+              <td className="px-3 py-2 text-right tabular-nums text-surface-muted align-top">
                 {s.rides}
               </td>
             </tr>

@@ -93,7 +93,8 @@ async function fetchEventTags(eventId: string): Promise<TagRow[]> {
     .map((r) => r.tag)
     .filter((t): t is TagRow => !!t)
     .sort((a, b) => {
-      if (a.category !== b.category) return a.category.localeCompare(b.category);
+      if (a.category !== b.category)
+        return a.category.localeCompare(b.category);
       return a.name.localeCompare(b.name);
     });
 }
@@ -225,34 +226,39 @@ export default async function LeaderboardPage({
   return (
     <main className="p-6 max-w-6xl mx-auto">
       <nav className="mb-2 text-sm">
-        <Link href="/events" className="text-text hover:underline">
+        <Link href="/events" className="text-page-foreground hover:underline">
           ← All events
         </Link>
       </nav>
 
-      <h1 className="text-2xl font-semibold mb-1 text-text">{event.name}</h1>
+      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
+        {event.name}
+      </h1>
 
       {(event.event_type || eventTags.length > 0) && (
         <div className="flex flex-wrap items-center gap-2 mb-2">
           {event.event_type && (
-            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-surface-strong text-text-on-light">
+            <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-surface-emphasis text-surface-foreground">
               {event.event_type}
             </span>
           )}
           {eventTags.map((t) => (
-            <TagPill key={t.id} id={t.id} name={t.name} category={t.category} />
+            <TagPill
+              key={t.id}
+              id={t.id}
+              name={t.name}
+              category={t.category}
+            />
           ))}
         </div>
       )}
 
-      <p className="text-sm mb-6 text-text-muted">{event.event_date ?? ""}</p>
+      <p className="text-sm mb-6 text-page-muted">{event.event_date ?? ""}</p>
 
-      {errorMsg && (
-        <p className="mb-4 text-danger">Error: {errorMsg}</p>
-      )}
+      {errorMsg && <p className="mb-4 text-danger">Error: {errorMsg}</p>}
 
       {!errorMsg && (
-        <div className="rounded-lg p-4 border bg-surface border-card-border">
+        <div className="rounded-lg p-4 border bg-surface border-surface-border">
           <StandingsTable
             standings={standings}
             stageTimes={stageTimes}

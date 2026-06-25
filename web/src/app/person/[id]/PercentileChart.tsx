@@ -23,8 +23,7 @@ type Point = {
 export function PercentileChart({ results }: { results: PersonResult[] }) {
   const points: Point[] = results
     .filter(
-      (r) =>
-        !r.is_dnf && r.percentile != null && r.event_date != null,
+      (r) => !r.is_dnf && r.percentile != null && r.event_date != null,
     )
     .slice()
     .sort((a, b) =>
@@ -40,13 +39,7 @@ export function PercentileChart({ results }: { results: PersonResult[] }) {
 
   if (points.length < 2) {
     return (
-      <div
-        className="mb-6 p-4 border rounded text-sm"
-        style={{
-          borderColor: "var(--color-border-on-light)",
-          color: "var(--color-text-on-light-muted)",
-        }}
-      >
+      <div className="mb-6 p-4 border rounded text-sm border-surface-border text-surface-muted">
         Need at least two finished results to show a percentile chart.
       </div>
     );
@@ -54,10 +47,7 @@ export function PercentileChart({ results }: { results: PersonResult[] }) {
 
   return (
     <div className="mb-6">
-      <h2
-        className="text-lg font-medium mb-2"
-        style={{ color: "var(--color-text-on-light)" }}
-      >
+      <h2 className="text-lg font-medium mb-2 text-surface-foreground">
         Percentile over time
       </h2>
       <div className="h-64 w-full">
@@ -68,23 +58,23 @@ export function PercentileChart({ results }: { results: PersonResult[] }) {
           >
             <CartesianGrid
               strokeDasharray="3 3"
-              stroke="var(--color-border-on-light)"
+              stroke="var(--color-surface-border)"
             />
             <XAxis
               dataKey="date"
               tick={{ fontSize: 12 }}
-              stroke="var(--color-text-on-light-muted)"
+              stroke="var(--color-surface-muted)"
             />
             <YAxis
               domain={[0, 100]}
               ticks={[0, 25, 50, 75, 100]}
               tick={{ fontSize: 12 }}
-              stroke="var(--color-text-on-light-muted)"
+              stroke="var(--color-surface-muted)"
               tickFormatter={(v) => `${v}%`}
             />
             <ReferenceLine
               y={50}
-              stroke="var(--color-border-on-light-strong)"
+              stroke="var(--color-surface-border-strong)"
               strokeDasharray="4 4"
             />
             <Tooltip content={<ChartTooltip />} />
@@ -113,17 +103,10 @@ function ChartTooltip({
   if (!active || !payload || payload.length === 0) return null;
   const p = payload[0].payload;
   return (
-    <div
-      className="rounded shadow-sm px-3 py-2 text-xs border"
-      style={{
-        backgroundColor: "var(--color-surface)",
-        borderColor: "var(--color-border-on-light)",
-        color: "var(--color-text-on-light)",
-      }}
-    >
+    <div className="rounded shadow-sm px-3 py-2 text-xs border bg-surface border-surface-border text-surface-foreground">
       <div className="font-medium">{p.eventName}</div>
-      <div style={{ color: "var(--color-text-on-light-muted)" }}>{p.date}</div>
-      <div style={{ color: "var(--color-text-on-light-muted)" }}>
+      <div className="text-surface-muted">{p.date}</div>
+      <div className="text-surface-muted">
         {p.course}
         {p.klass ? ` · ${p.klass}` : ""}
       </div>
