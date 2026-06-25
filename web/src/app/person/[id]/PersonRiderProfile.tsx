@@ -49,10 +49,8 @@ type RiderSliderValue = {
   display_order: number;
   low_label: string;
   high_label: string;
-  position: number; // 0..1, 0=fully low, 0.5=center, 1=fully high
+  position: number;
 };
-
-type RiderProfileEntry = RiderBarValue | RiderSliderValue;
 
 type BarAggregation = {
   person_id: string;
@@ -70,9 +68,8 @@ type SliderAggregation = {
   display_order: number;
   low_label: string;
   high_label: string;
-  // Internal scores used to derive position
-  low_score: number; // weighted avg favoring short stages
-  high_score: number; // weighted avg favoring long stages
+  low_score: number;
+  high_score: number;
   rides: number;
 };
 
@@ -83,24 +80,18 @@ function percentile(position: number, finishers: number): number {
 
 async function fetchAllData(): Promise<{
   rides: StageRide[];
-  categoriesByStage: Map<
-    string,
-    { id: string; name: string; display_order: number }[]
-  >;
+  categoriesByStage: Map<string, { id: string; name: string; display_order: number }[]>;
   categories: CategoryRow[];
   stageLengthRank: Map<string, number>;
 }> {
   const supabase = getServiceClient();
-
   const pageSize = 1000;
   const rides: StageRide[] = [];
   let offset = 0;
   while (true) {
     const { data, error } = await supabase
       .from("event_stage_times")
-      .select(
-        "person_id, stage_id, stage_position_class, finishers_class, time_ms",
-      )
+      .select("person_id, stage_id, stage_position_class, finishers_class, time_ms")
       .range(offset, offset + pageSize - 1);
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
@@ -111,9 +102,7 @@ async function fetchAllData(): Promise<{
 
   const { data: catData, error: catErr } = await supabase
     .from("category")
-    .select(
-      "id, name, display_order, rendering, slider_low_label, slider_high_label",
-    )
+    .select("id, name, display_order, rendering, slider_low_label, slider_high_label")
     .eq("category_type", "terrain")
     .order("display_order", { ascending: true });
   if (catErr) throw new Error(catErr.message);
@@ -134,12 +123,9 @@ async function fetchAllData(): Promise<{
     .select("stage_id, tag_id");
   if (stErr) throw new Error(stErr.message);
 
-  const categoryById = new Map<
-    string,
-    { id: string; name: string; display_order: number }
-  >();
+  const categoryById = new Map<string, { id: string; name: string; display_order: number }>();
   for (const c of categories) {
-    if (c.rendering !== "bar") continue; // only tag-driven categories
+    if (c.rendering !== "bar") continue;
     categoryById.set(c.id, {
       id: c.id,
       name: c.name,
@@ -147,35 +133,24 @@ async function fetchAllData(): Promise<{
     });
   }
 
-  const categoriesByStage = new Map<
-    string,
-    { id: string; name: string; display_order: number }[]
-  >();
+  const categoriesByStage = new Map<string, { id: string; name: string; display_order: number }[]>();
   for (const row of (stData ?? []) as StageTagRow[]) {
     const cats = tagToCategories.get(row.tag_id);
     if (!cats) continue;
-    if (!categoriesByStage.has(row.stage_id)) {
-      categoriesByStage.set(row.stage_id, []);
-    }
+    if (!categoriesByStage.has(row.stage_id)) categoriesByStage.set(row.stage_id, []);
     const existing = categoriesByStage.get(row.stage_id)!;
     for (const catId of cats) {
       const cat = categoryById.get(catId);
       if (!cat) continue;
-      if (!existing.some((e) => e.id === cat.id)) {
-        existing.push(cat);
-      }
+      if (!existing.some((e) => e.id === cat.id)) existing.push(cat);
     }
   }
 
-  // Stage length: winning time per stage with enough finishers
   const stageWinningTime = new Map<string, number>();
   const stageFinisherCount = new Map<string, number>();
   for (const r of rides) {
     if (r.time_ms == null) continue;
-    stageFinisherCount.set(
-      r.stage_id,
-      (stageFinisherCount.get(r.stage_id) ?? 0) + 1,
-    );
+    stageFinisherCount.set(r.stage_id, (stageFinisherCount.get(r.stage_id) ?? 0) + 1);
     const current = stageWinningTime.get(r.stage_id);
     if (current === undefined || r.time_ms < current) {
       stageWinningTime.set(r.stage_id, r.time_ms);
@@ -205,22 +180,13 @@ async function fetchAllData(): Promise<{
 
 function buildAggregations(
   rides: StageRide[],
-  categoriesByStage: Map<
-    string,
-    { id: string; name: string; display_order: number }[]
-  >,
+  categoriesByStage: Map<string, { id: string; name: string; display_order: number }[]>,
   categories: CategoryRow[],
   stageLengthRank: Map<string, number>,
 ): { bars: BarAggregation[]; sliders: SliderAggregation[] } {
   const sliderCats = categories.filter((c) => c.rendering === "slider");
 
-  // Tag-driven bar accumulator
-  const barAcc = new Map<
-    string,
-    Map<string, { name: string; display_order: number; pcts: number[] }>
-  >();
-
-  // Slider accumulator (per rider, per slider category)
+  const barAcc = new Map<string, Map<string, { name: string; display_order: number; pcts: number[] }>>();
   const sliderAcc = new Map<
     string,
     Map<
@@ -246,24 +212,18 @@ function buildAggregations(
 
     const pct = percentile(r.stage_position_class, r.finishers_class);
 
-    // Tag-driven contribution
     const cats = categoriesByStage.get(r.stage_id) ?? [];
     if (cats.length > 0) {
       if (!barAcc.has(r.person_id)) barAcc.set(r.person_id, new Map());
       const inner = barAcc.get(r.person_id)!;
       for (const c of cats) {
         if (!inner.has(c.id)) {
-          inner.set(c.id, {
-            name: c.name,
-            display_order: c.display_order,
-            pcts: [],
-          });
+          inner.set(c.id, { name: c.name, display_order: c.display_order, pcts: [] });
         }
         inner.get(c.id)!.pcts.push(pct);
       }
     }
 
-    // Slider contribution (based on stage length)
     const lengthRank = stageLengthRank.get(r.stage_id);
     if (lengthRank !== undefined) {
       if (!sliderAcc.has(r.person_id)) sliderAcc.set(r.person_id, new Map());
@@ -283,10 +243,8 @@ function buildAggregations(
           });
         }
         const slot = inner.get(sc.id)!;
-        // High = endurance = longer stages weigh more
         slot.weighted_sum_high += pct * lengthRank;
         slot.weight_sum_high += lengthRank;
-        // Low = power = shorter stages weigh more
         slot.weighted_sum_low += pct * (1 - lengthRank);
         slot.weight_sum_low += 1 - lengthRank;
         slot.rides += 1;
@@ -303,8 +261,7 @@ function buildAggregations(
         category_id,
         category_name: slot.name,
         display_order: slot.display_order,
-        avg_percentile:
-          slot.pcts.reduce((a, b) => a + b, 0) / slot.pcts.length,
+        avg_percentile: slot.pcts.reduce((a, b) => a + b, 0) / slot.pcts.length,
         rides: slot.pcts.length,
       });
     }
@@ -389,39 +346,29 @@ function buildSliderValues(
   );
   if (riderSliders.length === 0) return [];
 
-  // For each slider category, compute the field's standard deviation of diffs
   const fieldDiffsByCat = new Map<string, number[]>();
   for (const a of allSliders) {
     if (a.rides < MIN_RIDES_FOR_SLIDER) continue;
-    if (!fieldDiffsByCat.has(a.category_id)) {
-      fieldDiffsByCat.set(a.category_id, []);
-    }
+    if (!fieldDiffsByCat.has(a.category_id)) fieldDiffsByCat.set(a.category_id, []);
     fieldDiffsByCat.get(a.category_id)!.push(a.high_score - a.low_score);
   }
 
-  // How many stddevs to peg the slider at each end. 2 = clear visible spread,
-  // outliers pegged. 1.5 = even tighter typical spread.
   const PEG_STDDEVS = 2;
 
   return riderSliders.map((t) => {
     const myDiff = t.high_score - t.low_score;
     const fieldDiffs = fieldDiffsByCat.get(t.category_id) ?? [];
-
-    let stddev = 0.05; // fallback if field is too small for stats
+    let stddev = 0.05;
     if (fieldDiffs.length >= 2) {
-      const mean =
-        fieldDiffs.reduce((a, b) => a + b, 0) / fieldDiffs.length;
+      const mean = fieldDiffs.reduce((a, b) => a + b, 0) / fieldDiffs.length;
       const variance =
-        fieldDiffs.reduce((s, d) => s + (d - mean) ** 2, 0) /
-        fieldDiffs.length;
+        fieldDiffs.reduce((s, d) => s + (d - mean) ** 2, 0) / fieldDiffs.length;
       stddev = Math.sqrt(variance);
-      if (stddev < 0.01) stddev = 0.01; // avoid divide-by-zero
+      if (stddev < 0.01) stddev = 0.01;
     }
 
-    // Map [-PEG_STDDEVS*stddev, +PEG_STDDEVS*stddev] to [0, 1]
     const range = PEG_STDDEVS * stddev;
     const normalized = (myDiff + range) / (2 * range);
-
     return {
       kind: "slider" as const,
       category_id: t.category_id,
@@ -437,7 +384,10 @@ function buildSliderValues(
 function ProgressBar({ value }: { value: number }) {
   const pct = Math.max(0, Math.min(1, value)) * 100;
   return (
-    <div className="h-3 w-full rounded bg-gray-200 overflow-hidden">
+    <div
+      className="h-3 w-full rounded overflow-hidden"
+      style={{ backgroundColor: "var(--color-border-strong)" }}
+    >
       <div
         className="h-full transition-all"
         style={{
@@ -459,21 +409,16 @@ function PreferenceSlider({
   highLabel: string;
 }) {
   const clampedPos = Math.max(0, Math.min(1, position));
-
   const width = 200;
   const height = 110;
   const cx = width / 2;
   const cy = height - 10;
   const r = 80;
   const stroke = 16;
-
-  // Single arc, half circle, left to right
   const arcPath = `
     M ${cx - r} ${cy}
     A ${r} ${r} 0 0 1 ${cx + r} ${cy}
   `;
-
-  // Marker position on the arc
   const angleDeg = 180 - clampedPos * 180;
   const angleRad = (angleDeg * Math.PI) / 180;
   const markerX = cx + r * Math.cos(angleRad);
@@ -493,7 +438,6 @@ function PreferenceSlider({
             <stop offset="100%" stopColor="var(--color-accent-2)" />
           </linearGradient>
         </defs>
-
         <path
           d={arcPath}
           stroke="url(#preferenceGradient)"
@@ -501,21 +445,25 @@ function PreferenceSlider({
           fill="none"
           strokeLinecap="round"
         />
-
-        {/* Marker outer ring */}
         <circle
           cx={markerX}
           cy={markerY}
           r={11}
-          fill="white"
-          stroke="#1f2937"
+          fill="var(--color-marker-fill)"
+          stroke="var(--color-marker-stroke)"
           strokeWidth={2.5}
         />
-        {/* Marker inner dot */}
-        <circle cx={markerX} cy={markerY} r={5} fill="#1f2937" />
+        <circle
+          cx={markerX}
+          cy={markerY}
+          r={5}
+          fill="var(--color-marker-stroke)"
+        />
       </svg>
-
-      <div className="flex justify-between w-full text-xs text-gray-600 -mt-1">
+      <div
+        className="flex justify-between w-full text-xs -mt-1"
+        style={{ color: "var(--color-text-on-card)" }}
+      >
         <span>{lowLabel}</span>
         <span>{highLabel}</span>
       </div>
@@ -526,7 +474,10 @@ function PreferenceSlider({
 function BarRow({ entry }: { entry: RiderBarValue }) {
   return (
     <div className="grid grid-cols-[100px_1fr] items-center gap-3 mb-2">
-      <div className="text-sm text-gray-700 truncate">
+      <div
+        className="text-sm truncate"
+        style={{ color: "var(--color-text-on-card)" }}
+      >
         {entry.category_name}
       </div>
       <ProgressBar value={entry.value} />
@@ -536,12 +487,38 @@ function BarRow({ entry }: { entry: RiderBarValue }) {
 
 function SliderRow({ entry }: { entry: RiderSliderValue }) {
   return (
-    <div className="flex justify-center my-6">
+    <div className="flex justify-center my-2">
       <PreferenceSlider
         position={entry.position}
         lowLabel={entry.low_label}
         highLabel={entry.high_label}
       />
+    </div>
+  );
+}
+
+function ProfileCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div
+      className="rounded-lg p-4 mb-4 border"
+      style={{
+        backgroundColor: "var(--color-card)",
+        borderColor: "var(--color-card-border)",
+      }}
+    >
+      <h3
+        className="text-sm font-semibold uppercase tracking-wide mb-3"
+        style={{ color: "var(--color-text-muted)" }}
+      >
+        {title}
+      </h3>
+      {children}
     </div>
   );
 }
@@ -573,8 +550,15 @@ export async function PersonRiderProfile({
   if (errorMsg) {
     return (
       <section className="mb-8">
-        <h2 className="text-lg font-medium mb-3">Rider profile</h2>
-        <p className="text-red-600 text-sm">Error: {errorMsg}</p>
+        <h2
+          className="text-lg font-medium mb-3"
+          style={{ color: "var(--color-text)" }}
+        >
+          Rider profile
+        </h2>
+        <p className="text-sm" style={{ color: "var(--color-danger)" }}>
+          Error: {errorMsg}
+        </p>
       </section>
     );
   }
@@ -582,20 +566,24 @@ export async function PersonRiderProfile({
   const bars = buildBarValues(allBars, personId);
   const sliders = buildSliderValues(allSliders, personId);
 
-  const entries: RiderProfileEntry[] = [...bars, ...sliders].sort(
-    (a, b) => a.display_order - b.display_order,
-  );
-
-  if (entries.length === 0) return null;
+  if (bars.length === 0 && sliders.length === 0) return null;
 
   return (
     <section className="mb-8">
-      {entries.map((entry) =>
-        entry.kind === "bar" ? (
-          <BarRow key={entry.category_id} entry={entry} />
-        ) : (
-          <SliderRow key={entry.category_id} entry={entry} />
-        ),
+      {bars.length > 0 && (
+        <ProfileCard title="Terrain Affinity">
+          {bars.map((entry) => (
+            <BarRow key={entry.category_id} entry={entry} />
+          ))}
+        </ProfileCard>
+      )}
+
+      {sliders.length > 0 && (
+        <ProfileCard title="Rider Type">
+          {sliders.map((entry) => (
+            <SliderRow key={entry.category_id} entry={entry} />
+          ))}
+        </ProfileCard>
       )}
     </section>
   );

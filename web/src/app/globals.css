@@ -1,37 +1,43 @@
 @import "tailwindcss";
 
 :root {
-  /* === Color palette === */
-
-  /* Brand colors */
-  --color-primary: #2563eb;        /* main accent, active toggles, links */
+  /* === Brand === */
+  --color-primary: #2563eb;
   --color-primary-hover: #1d4ed8;
-  --color-primary-soft: #eff6ff;   /* light tint */
+  --color-primary-soft: #eff6ff;
 
-  --color-success: #10b981;        /* emerald for bars */
+  --color-success: #10b981;
   --color-success-hover: #059669;
 
-  --color-accent-1: #cc701b;           /* amber for power side of slider */
-  --color-accent-2: #4b7fbe;           /* teal for endurance side of slider */
+  --color-accent-1: #cc701b; /* power / left side of slider */
+  --color-accent-2: #4b7fbe; /* endurance / right side of slider */
 
   --color-danger: #dc2626;
   --color-danger-soft: #fef2f2;
 
-  /* Surfaces */
-  --color-background: #1a2540;
+  /* === Surfaces === */
+  --color-background: #ffffff; /* page background */
   --color-surface: #ffffff;
-  --color-surface-muted: #f9fafb;  /* gray-50 — filter strips, hovered rows */
-  --color-surface-strong: #f3f4f6; /* gray-100 — table headers */
+  --color-surface-muted: #f9fafb;
+  --color-surface-strong: #f3f4f6;
+  --color-card: #243150;       /* card body */
+  --color-card-border: #2f3d63; /* card border */
 
-  /* Text */
-  --color-text: #111827;           /* primary body */
-  --color-text-muted: #6b7280;     /* gray-500, secondary */
-  --color-text-faint: #9ca3af;     /* gray-400, tertiary */
+  /* === Text === */
+  --color-text: #f3f4f6;        /* primary body text, light on dark */
+  --color-text-on-card: #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-text-faint: #6b7280;
+  --color-text-on-light: #111827; /* dark text for white surfaces */
 
-  /* Borders */
-  --color-border: #e5e7eb;         /* gray-200 */
-  --color-border-soft: #f3f4f6;
-  --color-border-strong: #d1d5db;
+  /* === Borders === */
+  --color-border: #2f3d63;
+  --color-border-soft: #243150;
+  --color-border-strong: #475569;
+
+  /* === Marker / slider neutrals === */
+  --color-marker-stroke: #111827;
+  --color-marker-fill: #ffffff;
 }
 
 @theme inline {
@@ -40,24 +46,25 @@
   --color-surface: var(--color-surface);
   --color-surface-muted: var(--color-surface-muted);
   --color-surface-strong: var(--color-surface-strong);
+  --color-card: var(--color-card);
+  --color-card-border: var(--color-card-border);
 
   /* Text */
   --color-foreground: var(--color-text);
   --color-text: var(--color-text);
+  --color-text-on-card: var(--color-text-on-card);
   --color-text-muted: var(--color-text-muted);
   --color-text-faint: var(--color-text-faint);
+  --color-text-on-light: var(--color-text-on-light);
 
   /* Brand */
   --color-primary: var(--color-primary);
   --color-primary-hover: var(--color-primary-hover);
   --color-primary-soft: var(--color-primary-soft);
-
   --color-success: var(--color-success);
   --color-success-hover: var(--color-success-hover);
-
-  --color-warn: var(--color-warn);
-  --color-info: var(--color-info);
-
+  --color-accent-1: var(--color-accent-1);
+  --color-accent-2: var(--color-accent-2);
   --color-danger: var(--color-danger);
   --color-danger-soft: var(--color-danger-soft);
 
