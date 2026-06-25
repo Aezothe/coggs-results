@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { PersonStagePerformance } from "./PersonStagePerformance";
 import { PersonRiderProfile } from "./PersonRiderProfile";
@@ -40,7 +39,6 @@ async function fetchPerson(id: string): Promise<Person | null> {
 async function fetchPersonResults(personId: string): Promise<PersonResult[]> {
   const supabase = getServiceClient();
 
-  // 1. person.id -> competitor.id[]
   const { data: competitors, error: cErr } = await supabase
     .from("competitor")
     .select("id")
@@ -50,7 +48,6 @@ async function fetchPersonResults(personId: string): Promise<PersonResult[]> {
   const competitorIds = (competitors ?? []).map((c) => c.id as string);
   if (competitorIds.length === 0) return [];
 
-  // 2. standings + event name in a single query via nested select
   const { data: standingsRows, error: sErr } = await supabase
     .from("standings")
     .select(
@@ -112,23 +109,14 @@ export default async function PersonPage({
   return (
     <main className="p-6 max-w-5xl mx-auto">
       <header className="mb-6">
-        <div
-          className="text-xs font-semibold uppercase tracking-wider mb-1"
-          style={{ color: "var(--color-text-muted)" }}
-        >
+        <div className="text-xs font-semibold uppercase tracking-wider mb-1 text-text-muted">
           Rider Profile
         </div>
-        <h1
-          className="text-3xl font-bold"
-          style={{ color: "var(--color-text)" }}
-        >
+        <h1 className="text-3xl font-bold text-text">
           {displayName}
         </h1>
         {results.length > 0 && (
-          <p
-            className="text-sm mt-1"
-            style={{ color: "var(--color-text-muted)" }}
-          >
+          <p className="text-sm mt-1 text-text-muted">
             Race Category and Class:{" "}
             {[results[0].course_name, results[0].class_name]
               .filter(Boolean)
@@ -137,17 +125,15 @@ export default async function PersonPage({
         )}
       </header>
 
-<PersonRiderProfile personId={id} />
-
       <PersonRiderProfile personId={id} />
-
       <PersonStagePerformance personId={id} />
-
       {results.length > 0 && <PersonResultsSection results={results} />}
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && (
+        <p className="mb-4 text-danger">Error: {errorMsg}</p>
+      )}
       {!errorMsg && results.length === 0 && (
-        <p className="text-gray-500">No results found for this person.</p>
+        <p className="text-text-muted">No results found for this person.</p>
       )}
     </main>
   );

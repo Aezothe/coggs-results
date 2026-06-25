@@ -34,9 +34,9 @@ export function PersonStagePerformanceTable({
   );
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto text-text-on-light">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-surface-strong">
           <tr>
             <SortableHeader<SortKey>
               label="Stage"
@@ -71,11 +71,14 @@ export function PersonStagePerformanceTable({
             />
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-on-light">
           {sorted.map((s) => (
-            <tr key={s.stage_id} className="hover:bg-gray-50">
+            <tr key={s.stage_id} className="hover:bg-surface-muted">
               <td className="px-3 py-2 align-top">
-                <Link href={`/stages/${s.stage_id}`}>
+                <Link
+                  href={`/stages/${s.stage_id}`}
+                  className="text-text-on-light hover:underline"
+                >
                   {s.stage_name}
                 </Link>
                 {s.tags.length > 0 && (
@@ -86,13 +89,13 @@ export function PersonStagePerformanceTable({
                   </div>
                 )}
               </td>
-              <td className="px-3 py-2 text-right tabular-nums align-top">
+              <td className="px-3 py-2 text-right tabular-nums align-top text-text-on-light">
                 {(s.best_percentile * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600 align-top">
+              <td className="px-3 py-2 text-right tabular-nums text-text-on-light-muted align-top">
                 {(s.avg_percentile * 100).toFixed(1)}%
               </td>
-              <td className="px-3 py-2 text-right tabular-nums text-gray-600 align-top">
+              <td className="px-3 py-2 text-right tabular-nums text-text-on-light-muted align-top">
                 {s.rides}
               </td>
             </tr>

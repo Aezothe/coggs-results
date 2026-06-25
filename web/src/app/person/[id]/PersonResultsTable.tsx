@@ -41,16 +41,16 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
 
   if (results.length === 0) {
     return (
-      <p className="text-sm text-gray-500">
+      <p className="text-sm text-text-on-light-muted">
         No results match the current filters.
       </p>
     );
   }
 
   return (
-    <div className="overflow-x-auto">
+    <div className="overflow-x-auto text-text-on-light">
       <table className="min-w-full text-sm">
-        <thead className="bg-gray-100">
+        <thead className="bg-surface-strong">
           <tr>
             <SortableHeader<SortKey>
               label="Date"
@@ -76,28 +76,31 @@ export function PersonResultsTable({ results }: { results: PersonResult[] }) {
             />
           </tr>
         </thead>
-        <tbody className="divide-y">
+        <tbody className="divide-y divide-on-light">
           {sorted.map((r) => (
-            <tr key={r.entry_id} className="hover:bg-gray-50">
-              <td className="px-3 py-2 text-gray-600 align-top whitespace-nowrap">
+            <tr key={r.entry_id} className="hover:bg-surface-muted">
+              <td className="px-3 py-2 text-text-on-light-muted align-top whitespace-nowrap">
                 {formatDate(r.event_date)}
               </td>
               <td className="px-3 py-2 align-top">
                 <div className="flex items-baseline gap-2">
-                  <span className="text-gray-500 tabular-nums text-xs w-6 shrink-0">
+                  <span className="text-text-on-light-muted tabular-nums text-xs w-6 shrink-0">
                     {r.is_dnf ? "—" : (r.position ?? "")}
                   </span>
                   <div className="leading-tight">
-                    <Link href={`/leaderboard/${r.event_id}`} className="text-gray-600 hover:underline">
+                    <Link
+                      href={`/leaderboard/${r.event_id}`}
+                      className="text-text-on-light hover:underline"
+                    >
                       {r.event_name ?? ""}
                     </Link>
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-text-on-light-muted">
                       {[r.course_name, r.class_name].filter(Boolean).join(" · ")}
                     </div>
                   </div>
                 </div>
               </td>
-              <td className="px-3 py-2 text-right tabular-nums align-top">
+              <td className="px-3 py-2 text-right tabular-nums align-top text-text-on-light">
                 {r.percentile != null
                   ? `${(r.percentile * 100).toFixed(1)}%`
                   : ""}

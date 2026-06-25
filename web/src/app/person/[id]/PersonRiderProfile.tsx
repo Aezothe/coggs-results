@@ -577,7 +577,7 @@ export async function PersonRiderProfile({
           ))}
         </ProfileCard>
       )}
-
+  
       {sliders.length > 0 && (
         <ProfileCard title="Rider Type">
           {sliders.map((entry) => (
