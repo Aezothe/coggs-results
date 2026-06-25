@@ -115,9 +115,9 @@ export default async function PersonPage({
 
       <PersonRiderProfile personId={id} />
 
-      {results.length > 0 && <PersonResultsSection results={results} />}
-
       <PersonStagePerformance personId={id} />
+
+      {results.length > 0 && <PersonResultsSection results={results} />}
 
       {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
       {!errorMsg && results.length === 0 && (
