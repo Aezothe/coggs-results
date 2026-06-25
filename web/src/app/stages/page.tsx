@@ -20,9 +20,7 @@ async function fetchStages(): Promise<StageRow[]> {
 
   const { data, error } = await supabase
     .from("stage")
-    .select(
-      "id, name, location:location_id(name), segment(id, kind)",
-    )
+    .select("id, name, location:location_id(name), segment(id, kind)")
     .order("name", { ascending: true });
 
   if (error) throw new Error(error.message);
@@ -47,7 +45,6 @@ async function fetchStages(): Promise<StageRow[]> {
 }
 
 function groupByLocation(stages: StageRow[]): LocationGroup[] {
-  // Only include stages that have been used in events
   const used = stages.filter((s) => s.event_appearances > 0);
 
   const byLocation = new Map<string, StageRow[]>();
@@ -57,12 +54,10 @@ function groupByLocation(stages: StageRow[]): LocationGroup[] {
     byLocation.get(key)!.push(s);
   }
 
-  // Sort stages within each group alphabetically
   for (const arr of byLocation.values()) {
     arr.sort((a, b) => a.name.localeCompare(b.name));
   }
 
-  // Build the final groups, located alphabetically, with "Other" last
   const namedGroups: LocationGroup[] = [];
   let otherGroup: LocationGroup | null = null;
 
@@ -94,43 +89,46 @@ export default async function StagesPage() {
 
   return (
     <main className="p-6 max-w-3xl mx-auto">
-      <h1 className="text-2xl font-semibold mb-1">Stages</h1>
-      <p className="text-sm text-gray-500 mb-6">
+      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
+        Stages
+      </h1>
+      <p className="text-sm text-page-muted mb-6">
         {totalStages} stage{totalStages === 1 ? "" : "s"} used across events
       </p>
 
-      {errorMsg && <p className="text-red-600 mb-4">Error: {errorMsg}</p>}
+      {errorMsg && <p className="text-danger mb-4">Error: {errorMsg}</p>}
 
       {!errorMsg && groups.length === 0 && (
-        <p className="text-gray-500">No stages yet.</p>
+        <p className="text-page-muted">No stages yet.</p>
       )}
 
       {groups.map((g) => (
         <details
           key={g.name}
-          className="border border-gray-200 rounded mb-3 group"
+          className="border border-surface-border rounded-lg mb-3 group bg-surface overflow-hidden"
         >
-          <summary className="px-3 py-2 cursor-pointer flex items-center justify-between hover:bg-gray-50 select-none list-none">
+          <summary className="px-3 py-2 cursor-pointer flex items-center justify-between hover:bg-surface-hover select-none list-none">
             <span className="flex items-center gap-2">
-              <span className="text-gray-500 text-xs transition-transform group-open:rotate-90">
+              <span className="text-surface-muted text-xs transition-transform group-open:rotate-90">
                 ▶
               </span>
-              <span className="font-medium text-gray-900">{g.name}</span>
+              <span className="font-medium text-surface-foreground">
+                {g.name}
+              </span>
             </span>
-            <span className="text-sm text-gray-500 tabular-nums">
+            <span className="text-sm text-surface-muted tabular-nums">
               {g.stages.length} stage{g.stages.length === 1 ? "" : "s"}
             </span>
           </summary>
 
-          <ul className="divide-y divide-gray-200 border-t border-gray-200">
+          <ul className="divide-y divide-surface-border border-t border-surface-border">
             {g.stages.map((s) => (
               <li key={s.id}>
-                <Link
-                  href={`/stages/${s.id}`}
-                  className="flex items-center justify-between py-2 px-3 hover:bg-gray-50"
+                <Link href={`/stages/${s.id}`}
+                  className="flex items-center justify-between py-2 px-3 hover:bg-surface-hover"
                 >
-                  <span className="text-gray-900">{s.name}</span>
-                  <span className="text-sm text-gray-500 tabular-nums">
+                  <span className="text-surface-foreground">{s.name}</span>
+                  <span className="text-sm text-surface-muted tabular-nums">
                     {s.event_appearances} event
                     {s.event_appearances === 1 ? "" : "s"}
                   </span>

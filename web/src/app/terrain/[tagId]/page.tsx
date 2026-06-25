@@ -1,7 +1,5 @@
-import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
-import { TerrainStagesTable, type StageWithCounts } from "./TerrainStagesTable";
 
 export const dynamic = "force-dynamic";
 
@@ -11,115 +9,101 @@ type TagRow = {
   category: string;
 };
 
-async function fetchTag(tagId: string): Promise<TagRow | null> {
+type StageTagRow = {
+  tag_id: string;
+  stage_id: string;
+};
+
+type TerrainSummary = {
+  id: string;
+  name: string;
+  stage_count: number;
+};
+
+async function fetchUsedTerrainTags(): Promise<TerrainSummary[]> {
   const supabase = getServiceClient();
-  const { data, error } = await supabase
-    .from("tag")
-    .select("id, name, category")
-    .eq("id", tagId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  return (data as TagRow | null) ?? null;
-}
 
-async function fetchStagesForTag(tagId: string): Promise<StageWithCounts[]> {
-  const supabase = getServiceClient();
+  const [tagsResp, joinResp] = await Promise.all([
+    supabase
+      .from("tag")
+      .select("id, name, category")
+      .eq("category", "terrain"),
+    supabase.from("stage_tag").select("tag_id, stage_id"),
+  ]);
 
-  const { data: joinData, error: joinErr } = await supabase
-    .from("stage_tag")
-    .select("stage_id")
-    .eq("tag_id", tagId);
-  if (joinErr) throw new Error(joinErr.message);
+  if (tagsResp.error) throw new Error(tagsResp.error.message);
+  if (joinResp.error) throw new Error(joinResp.error.message);
 
-  const stageIds = (joinData ?? []).map((r) => r.stage_id as string);
-  if (stageIds.length === 0) return [];
+  const tags = (tagsResp.data ?? []) as TagRow[];
+  const join = (joinResp.data ?? []) as StageTagRow[];
 
-  const { data: stageRows, error: stageErr } = await supabase
-    .from("stage")
-    .select("id, name")
-    .in("id", stageIds);
-  if (stageErr) throw new Error(stageErr.message);
-
-  const pageSize = 1000;
-  const rideRows: { stage_id: string; event_id: string }[] = [];
-  let offset = 0;
-  while (true) {
-    const { data, error } = await supabase
-      .from("event_stage_times")
-      .select("stage_id, event_id")
-      .in("stage_id", stageIds)
-      .range(offset, offset + pageSize - 1);
-    if (error) throw new Error(error.message);
-    if (!data || data.length === 0) break;
-    rideRows.push(...(data as { stage_id: string; event_id: string }[]));
-    if (data.length < pageSize) break;
-    offset += pageSize;
-  }
-
-  const ridesByStage = new Map<string, number>();
-  const eventsByStage = new Map<string, Set<string>>();
-  for (const row of rideRows) {
-    ridesByStage.set(row.stage_id, (ridesByStage.get(row.stage_id) ?? 0) + 1);
-    if (!eventsByStage.has(row.stage_id)) {
-      eventsByStage.set(row.stage_id, new Set());
+  const stagesByTag = new Map<string, Set<string>>();
+  for (const row of join) {
+    if (!stagesByTag.has(row.tag_id)) {
+      stagesByTag.set(row.tag_id, new Set());
     }
-    eventsByStage.get(row.stage_id)!.add(row.event_id);
+    stagesByTag.get(row.tag_id)!.add(row.stage_id);
   }
 
-  return ((stageRows ?? []) as { id: string; name: string }[]).map((s) => ({
-    id: s.id,
-    name: s.name,
-    events: eventsByStage.get(s.id)?.size ?? 0,
-    rides: ridesByStage.get(s.id) ?? 0,
-  }));
+  const summaries: TerrainSummary[] = [];
+  for (const t of tags) {
+    const stages = stagesByTag.get(t.id);
+    if (!stages || stages.size === 0) continue;
+    summaries.push({
+      id: t.id,
+      name: t.name,
+      stage_count: stages.size,
+    });
+  }
+
+  summaries.sort((a, b) => {
+    if (b.stage_count !== a.stage_count) return b.stage_count - a.stage_count;
+    return a.name.localeCompare(b.name);
+  });
+
+  return summaries;
 }
 
-export default async function TerrainDetailPage({
-  params,
-}: {
-  params: Promise<{ tagId: string }>;
-}) {
-  const { tagId } = await params;
-
-  const tag = await fetchTag(tagId);
-  if (!tag) notFound();
-
-  let stages: StageWithCounts[] = [];
+export default async function TerrainPage() {
+  let tags: TerrainSummary[] = [];
   let errorMsg: string | null = null;
   try {
-    stages = await fetchStagesForTag(tagId);
+    tags = await fetchUsedTerrainTags();
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
   }
 
   return (
     <main className="p-6 max-w-3xl mx-auto">
-      <nav className="mb-2 text-sm">
-        <Link href="/terrain"
-          className="text-page-foreground hover:underline"
-        >
-          ← All terrain
-        </Link>
-      </nav>
-
       <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
-        {tag.name}
+        Terrain
       </h1>
       <p className="text-sm text-page-muted mb-6">
-        {tag.category} · {stages.length} stage{stages.length === 1 ? "" : "s"}
+        {tags.length} terrain type{tags.length === 1 ? "" : "s"} in use
       </p>
 
       {errorMsg && <p className="text-danger mb-4">Error: {errorMsg}</p>}
 
-      {!errorMsg && stages.length === 0 && (
-        <p className="text-page-muted">
-          No stages tagged with {tag.name} yet.
-        </p>
+      {!errorMsg && tags.length === 0 && (
+        <p className="text-page-muted">No terrain tags in use yet.</p>
       )}
 
-      {stages.length > 0 && (
-        <div className="rounded-lg p-4 border bg-surface border-surface-border">
-          <TerrainStagesTable stages={stages} />
+      {tags.length > 0 && (
+        <div className="rounded-lg p-2 border bg-surface border-surface-border">
+          <ul className="divide-y divide-surface-border">
+            {tags.map((t) => (
+              <li key={t.id}>
+                <Link href={`/terrain/${t.id}`}
+                  className="flex items-center justify-between py-2 px-2 rounded hover:bg-surface-hover"
+                >
+                  <span className="text-surface-foreground">{t.name}</span>
+                  <span className="text-sm text-surface-muted tabular-nums">
+                    {t.stage_count} stage{t.stage_count === 1 ? "" : "s"}
+                  </span>
+                </Link>
+              </li>
+            ))}
+          </ul>
         </div>
       )}
     </main>
