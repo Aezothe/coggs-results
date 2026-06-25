@@ -1,9 +1,9 @@
 import { getServiceClient } from "@/lib/supabase/server";
-import Link from "next/link";
+import { EventsList } from "./EventsList";
 
 export const dynamic = "force-dynamic";
 
-type EventRow = {
+export type EventRow = {
   id: string;
   name: string;
   event_date: string | null;
@@ -41,21 +41,8 @@ export default async function EventsPage() {
       {events.length === 0 ? (
         <p className="text-page-muted">No events found.</p>
       ) : (
-        <div className="rounded-lg p-2 border bg-surface border-surface-border">
-          <ul className="divide-y divide-surface-border">
-            {events.map((e) => (
-              <li key={e.id}>
-                <Link href={`/leaderboard/${e.id}`}
-                  className="flex items-center justify-between py-2 px-2 rounded hover:bg-surface-hover"
-                >
-                  <span className="text-surface-foreground">{e.name}</span>
-                  <span className="text-sm text-surface-muted tabular-nums">
-                    {e.event_date ?? ""}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
+        <div className="rounded-lg p-4 border bg-surface border-surface-border">
+          <EventsList events={events} />
         </div>
       )}
     </main>
