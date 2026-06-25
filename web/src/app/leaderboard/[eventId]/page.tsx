@@ -1,5 +1,4 @@
 import { notFound } from "next/navigation";
-import Link from "next/link";
 import { getServiceClient } from "@/lib/supabase/server";
 import { StandingsTable } from "./StandingsTable";
 import { TagPill } from "@/components/TagPill";
@@ -69,6 +68,20 @@ type EventRow = {
   event_type: string | null;
 };
 
+function formatLongDate(iso: string | null): string {
+  if (!iso) return "";
+  const parts = iso.split("-");
+  if (parts.length !== 3) return iso;
+  const [year, month, day] = parts.map(Number);
+  const date = new Date(year, month - 1, day);
+  return date.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
 async function fetchEvent(eventId: string): Promise<EventRow | null> {
   const supabase = getServiceClient();
   const { data, error } = await supabase
@@ -97,6 +110,28 @@ async function fetchEventTags(eventId: string): Promise<TagRow[]> {
         return a.category.localeCompare(b.category);
       return a.name.localeCompare(b.name);
     });
+}
+
+async function fetchEventLocations(eventId: string): Promise<string[]> {
+  const supabase = getServiceClient();
+  // Pull segments for this event, joined to stage → location.
+  const { data, error } = await supabase
+    .from("segment")
+    .select("stage:stage_id(location:location_id(name))")
+    .eq("event_id", eventId)
+    .eq("kind", "stage");
+  if (error) throw new Error(error.message);
+
+  type JoinRow = {
+    stage: { location: { name: string } | null } | null;
+  };
+
+  const names = new Set<string>();
+  for (const row of (data ?? []) as unknown as JoinRow[]) {
+    const name = row.stage?.location?.name;
+    if (name) names.add(name);
+  }
+  return Array.from(names).sort((a, b) => a.localeCompare(b));
 }
 
 async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
@@ -185,6 +220,7 @@ export default async function LeaderboardPage({
   let stageTimes: StageTime[] = [];
   let splitTimes: SplitTime[] = [];
   let eventTags: TagRow[] = [];
+  let locations: string[] = [];
   let errorMsg: string | null = null;
 
   try {
@@ -199,6 +235,12 @@ export default async function LeaderboardPage({
     eventTags = await fetchEventTags(eventId);
   } catch {
     eventTags = [];
+  }
+
+  try {
+    locations = await fetchEventLocations(eventId);
+  } catch {
+    locations = [];
   }
 
   const courses = uniqueSorted(standings, "course_name");
@@ -225,18 +267,30 @@ export default async function LeaderboardPage({
 
   return (
     <main className="p-6 max-w-6xl mx-auto">
-      <nav className="mb-2 text-sm">
-        <Link href="/events" className="text-page-foreground hover:underline">
-          ← All events
-        </Link>
-      </nav>
+      <header className="mb-6 flex flex-col sm:flex-row sm:items-end sm:justify-between gap-2">
+        <div>
+          <div className="text-xs font-semibold uppercase tracking-wider mb-1 text-accent-1">
+            Event Results
+          </div>
+          <h1 className="text-3xl font-bold text-page-foreground">
+            {event.name}
+          </h1>
+          {locations.length > 0 && (
+            <p className="text-sm mt-1 text-page-muted">
+              {locations.join(" · ")}
+            </p>
+          )}
+        </div>
 
-      <h1 className="text-2xl font-semibold mb-1 text-page-foreground">
-        {event.name}
-      </h1>
+        {event.event_date && (
+          <p className="text-sm text-page-muted sm:text-right">
+            {formatLongDate(event.event_date)}
+          </p>
+        )}
+      </header>
 
       {(event.event_type || eventTags.length > 0) && (
-        <div className="flex flex-wrap items-center gap-2 mb-2">
+        <div className="flex flex-wrap items-center gap-2 mb-6">
           {event.event_type && (
             <span className="inline-flex items-center text-xs px-2 py-0.5 rounded font-medium bg-surface-emphasis text-surface-foreground">
               {event.event_type}
@@ -252,8 +306,6 @@ export default async function LeaderboardPage({
           ))}
         </div>
       )}
-
-      <p className="text-sm mb-6 text-page-muted">{event.event_date ?? ""}</p>
 
       {errorMsg && <p className="mb-4 text-danger">Error: {errorMsg}</p>}
 
