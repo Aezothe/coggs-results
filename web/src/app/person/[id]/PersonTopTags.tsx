@@ -129,26 +129,20 @@ export async function PersonTopTags({ personId }: { personId: string }) {
 
   return (
     <section className="mb-8">
-      <div className="surface-dark rounded-lg p-4 border bg-surface border-surface-border max-w-md">
+      <div className="surface-dark rounded-lg p-4 border bg-surface border-surface-border max-w-md mx-auto">
         <h3 className="text-sm font-semibold uppercase tracking-wide mb-3 text-surface-muted">
           Top Tags
         </h3>
 
-        <ul className="flex flex-col gap-1">
+        <div className="flex flex-wrap gap-2">
           {topTags.map((t) => (
-            <li
-              key={t.tag_id}
-              className="flex items-baseline justify-between gap-3 text-sm"
+            <Link href={`/terrain/${t.tag_id}`}
+              className="inline-flex items-center px-3 py-1 rounded-full text-sm bg-surface-emphasis text-surface-foreground hover:bg-surface-hover transition-colors"
             >
-              <Link href={`/terrain/${t.tag_id}`} className="text-surface-foreground hover:underline">
-                {t.tag_name}
-              </Link>
-              <span className="text-surface-muted tabular-nums">
-                {(t.avg_percentile * 100).toFixed(1)}%
-              </span>
-            </li>
+              {t.tag_name}
+            </Link>
           ))}
-        </ul>
+        </div>
       </div>
     </section>
   );
