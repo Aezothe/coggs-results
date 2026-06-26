@@ -749,7 +749,7 @@ function NewRiderBanner({ dataPoints }: { dataPoints: number }) {
   const message =
     dataPoints === 0
       ? "Race events to see your terrain affinity."
-      : `Showing a preliminary profile based onlimited data point${dataPoints === 1 ? "" : "s"}. Race more events for accurate stats.`;
+      : `Showing a preliminary profile based on limited data point${dataPoints === 1 ? "" : "s"}. Race more events for accurate stats.`;
 
   return (
     <div
