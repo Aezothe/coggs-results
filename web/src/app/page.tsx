@@ -1,4 +1,7 @@
 import Link from "next/link";
+import { FeaturedEventCard } from "./FeaturedEventCard";
+
+export const dynamic = "force-dynamic";
 
 type CardLink = {
   href: string;
@@ -29,7 +32,7 @@ const cards: CardLink[] = [
   },
 ];
 
-export default function HomePage() {
+export default async function HomePage() {
   return (
     <main className="p-6 max-w-3xl mx-auto">
       <h1 className="text-3xl font-semibold mb-2 text-page-foreground">
@@ -38,6 +41,8 @@ export default function HomePage() {
       <p className="text-page-muted mb-8">
         Race results and standings for COGGS events.
       </p>
+
+      <FeaturedEventCard />
 
       <div className="grid gap-4 sm:grid-cols-2">
         {cards.map((card) => (
