@@ -18,7 +18,7 @@ const cards: CardLink[] = [
   {
     href: "/people",
     title: "People →",
-    description: "Search competitors and view their results over time.",
+    description: "Search competitors and view their results.",
   },
   {
     href: "/stages",
