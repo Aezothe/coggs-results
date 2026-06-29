@@ -13,7 +13,7 @@ const cards: CardLink[] = [
   {
     href: "/events",
     title: "Events →",
-    description: "Search COGGS timed events",
+    description: "Search events timed by COGGS.",
   },
   {
     href: "/people",
