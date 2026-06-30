@@ -7,6 +7,17 @@ import type { RegistrationRow } from "./page";
 
 type SortKey = "name" | "course" | "class_name";
 
+type ClassCount = {
+  className: string;
+  count: number;
+};
+
+type CourseCount = {
+  courseName: string;
+  count: number;
+  classes: ClassCount[];
+};
+
 function displayName(r: RegistrationRow): string {
   return [r.first_name, r.last_name].filter(Boolean).join(" ") || "Unnamed";
 }
@@ -15,12 +26,40 @@ function lastFirstSortKey(r: RegistrationRow): string {
   return `${(r.last_name ?? "").toLowerCase()} ${(r.first_name ?? "").toLowerCase()}`.trim();
 }
 
+function computeCounts(registrations: RegistrationRow[]): CourseCount[] {
+  const byCourse = new Map<string, Map<string, number>>();
+
+  for (const r of registrations) {
+    const courseName = r.course || "Unassigned";
+    const className = r.class_name || "Unassigned";
+    if (!byCourse.has(courseName)) byCourse.set(courseName, new Map());
+    const courseMap = byCourse.get(courseName)!;
+    courseMap.set(className, (courseMap.get(className) ?? 0) + 1);
+  }
+
+  const courses: CourseCount[] = [];
+  for (const [courseName, classMap] of byCourse.entries()) {
+    const classes: ClassCount[] = [];
+    let total = 0;
+    for (const [className, count] of classMap.entries()) {
+      classes.push({ className, count });
+      total += count;
+    }
+    classes.sort((a, b) => a.className.localeCompare(b.className));
+    courses.push({ courseName, count: total, classes });
+  }
+  courses.sort((a, b) => a.courseName.localeCompare(b.courseName));
+  return courses;
+}
+
 export function RegistrationsList({
   registrations,
 }: {
   registrations: RegistrationRow[];
 }) {
   const [query, setQuery] = useState("");
+
+  const counts = useMemo(() => computeCounts(registrations), [registrations]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -57,6 +96,30 @@ export function RegistrationsList({
 
   return (
     <div>
+      {counts.length > 0 && (
+        <div className="mb-6 pb-4 border-b border-surface-border">
+          <div className="text-sm font-semibold text-surface-foreground mb-2">
+            {registrations.length} total
+          </div>
+          <ul className="text-sm space-y-1">
+            {counts.map((c) => (
+              <li key={c.courseName} className="text-surface-foreground">
+                <span className="font-medium">{c.courseName}</span>{" "}
+                <span className="text-surface-muted">({c.count})</span>
+                {c.classes.length > 0 && (
+                  <span className="text-surface-muted">
+                    {" — "}
+                    {c.classes
+                      .map((cls) => `${cls.className} (${cls.count})`)
+                      .join(", ")}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
       <div className="flex items-center gap-3 mb-4">
         <input
           type="search"
