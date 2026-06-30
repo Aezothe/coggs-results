@@ -1,21 +1,18 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { useSortedTable } from "@/lib/useSortedTable";
+import { SortableHeader } from "@/components/SortableHeader";
 import type { RegistrationRow } from "./page";
 
-type GroupedClass = {
-  className: string;
-  riders: RegistrationRow[];
-};
-
-type GroupedCourse = {
-  courseName: string;
-  classes: GroupedClass[];
-  count: number;
-};
+type SortKey = "name" | "course" | "class_name";
 
 function displayName(r: RegistrationRow): string {
   return [r.first_name, r.last_name].filter(Boolean).join(" ") || "Unnamed";
+}
+
+function lastFirstSortKey(r: RegistrationRow): string {
+  return `${(r.last_name ?? "").toLowerCase()} ${(r.first_name ?? "").toLowerCase()}`.trim();
 }
 
 export function RegistrationsList({
@@ -28,40 +25,27 @@ export function RegistrationsList({
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return registrations;
-    return registrations.filter((r) => displayName(r).toLowerCase().includes(q));
+    return registrations.filter((r) =>
+      displayName(r).toLowerCase().includes(q),
+    );
   }, [registrations, query]);
 
-  // Group: course → class → riders (alphabetical by last name)
-  const grouped = useMemo<GroupedCourse[]>(() => {
-    const byCourse = new Map<string, Map<string, RegistrationRow[]>>();
-    for (const r of filtered) {
-      const courseName = r.course || "Unassigned course";
-      const className = r.class_name || "Unassigned class";
-      if (!byCourse.has(courseName)) byCourse.set(courseName, new Map());
-      const courseMap = byCourse.get(courseName)!;
-      if (!courseMap.has(className)) courseMap.set(className, []);
-      courseMap.get(className)!.push(r);
+  const getValue = useCallback((row: RegistrationRow, key: SortKey) => {
+    switch (key) {
+      case "name":
+        return lastFirstSortKey(row);
+      case "course":
+        return (row.course ?? "").toLowerCase();
+      case "class_name":
+        return (row.class_name ?? "").toLowerCase();
     }
+  }, []);
 
-    const courses: GroupedCourse[] = [];
-    for (const [courseName, courseMap] of byCourse.entries()) {
-      const classes: GroupedClass[] = [];
-      let total = 0;
-      for (const [className, riders] of courseMap.entries()) {
-        const sortedRiders = [...riders].sort((a, b) => {
-          const al = (a.last_name ?? "").localeCompare(b.last_name ?? "");
-          if (al !== 0) return al;
-          return (a.first_name ?? "").localeCompare(b.first_name ?? "");
-        });
-        classes.push({ className, riders: sortedRiders });
-        total += sortedRiders.length;
-      }
-      classes.sort((a, b) => a.className.localeCompare(b.className));
-      courses.push({ courseName, classes, count: total });
-    }
-    courses.sort((a, b) => a.courseName.localeCompare(b.courseName));
-    return courses;
-  }, [filtered]);
+  const { sorted, sort, onSort } = useSortedTable<RegistrationRow, SortKey>(
+    filtered,
+    getValue,
+    { key: "course", dir: "asc" },
+  );
 
   if (registrations.length === 0) {
     return (
@@ -73,7 +57,7 @@ export function RegistrationsList({
 
   return (
     <div>
-      <div className="flex items-center gap-3 mb-6">
+      <div className="flex items-center gap-3 mb-4">
         <input
           type="search"
           placeholder="Search by name..."
@@ -87,48 +71,51 @@ export function RegistrationsList({
         </span>
       </div>
 
-      {grouped.length === 0 ? (
+      {filtered.length === 0 ? (
         <p className="text-surface-muted text-sm">No matches.</p>
       ) : (
-        grouped.map((course) => (
-          <section key={course.courseName} className="mb-8 last:mb-0">
-            <h2 className="text-lg font-semibold text-surface-foreground mb-3">
-              {course.courseName}{" "}
-              <span className="text-sm font-normal text-surface-muted">
-                ({course.count})
-              </span>
-            </h2>
-
-            {course.classes.map((cls) => (
-              <div key={cls.className} className="mb-4 last:mb-0">
-                <h3 className="text-sm font-semibold text-surface-muted uppercase tracking-wide mb-2">
-                  {cls.className}{" "}
-                  <span className="text-xs font-normal">
-                    ({cls.riders.length})
-                  </span>
-                </h3>
-
-                <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-x-4 gap-y-1">
-                  {cls.riders.map((r) => (
-                    <li
-                      key={r.id}
-                      className="text-sm text-surface-foreground"
-                    >
-                      {r.last_name ? (
-                        <>
-                          {r.last_name}
-                          {r.first_name ? `, ${r.first_name}` : ""}
-                        </>
-                      ) : (
-                        r.first_name || "Unnamed"
-                      )}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </section>
-        ))
+        <div className="overflow-x-auto text-surface-foreground">
+          <table className="min-w-full text-sm">
+            <thead className="bg-surface-emphasis">
+              <tr>
+                <SortableHeader<SortKey>
+                  label="Name"
+                  sortKey="name"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
+                <SortableHeader<SortKey>
+                  label="Course"
+                  sortKey="course"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
+                <SortableHeader<SortKey>
+                  label="Class"
+                  sortKey="class_name"
+                  currentKey={sort.key}
+                  currentDir={sort.dir}
+                  onSort={onSort}
+                />
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-surface-border">
+              {sorted.map((r) => (
+                <tr key={r.id} className="hover:bg-surface-hover">
+                  <td className="px-3 py-2">{displayName(r)}</td>
+                  <td className="px-3 py-2 text-surface-muted">
+                    {r.course ?? ""}
+                  </td>
+                  <td className="px-3 py-2 text-surface-muted">
+                    {r.class_name ?? ""}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       )}
     </div>
   );
