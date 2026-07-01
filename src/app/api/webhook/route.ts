@@ -136,53 +136,40 @@ async function resolvePersonId(
 
   // 3. name_normalized match (catches guests without account_id/email
   //    who have been seen before under the same name in any source)
-  if (normName) {
-    const { data: hit } = await supabase
+if (normName) {
+  const { error: nnErr } = await supabase
+    .from("person_identifier")
+    .insert({
+      person_id: personId,
+      source: "neon",
+      id_type: "name_normalized",
+      id_value: normName,
+      confidence: "auto",
+    });
+
+  // If someone else beat us to inserting this name_normalized identifier,
+  // it means another webhook created a person with the same name at the same time.
+  // Merge our newly-created person into theirs.
+  if (nnErr && String(nnErr.message).includes("duplicate")) {
+    const { data: existing } = await supabase
       .from("person_identifier")
       .select("person_id")
       .eq("id_type", "name_normalized")
       .eq("id_value", normName)
       .maybeSingle();
-    if (hit?.person_id) {
-      const personId = hit.person_id as string;
-      // Backfill identifiers so future lookups are direct hits
-      const backfill: Array<{
-        person_id: string;
-        source: string;
-        id_type: string;
-        id_value: string;
-        confidence: string;
-      }> = [];
-      if (accId) {
-        backfill.push({
-          person_id: personId,
-          source: "neon",
-          id_type: "neon_account_id",
-          id_value: accId,
-          confidence: "auto",
-        });
-      }
-      if (email) {
-        backfill.push({
-          person_id: personId,
-          source: "neon",
-          id_type: "email",
-          id_value: email,
-          confidence: "auto",
-        });
-      }
-      if (backfill.length > 0) {
-        await supabase
-          .from("person_identifier")
-          .insert(backfill)
-          .then(
-            () => undefined,
-            () => undefined,
-          );
-      }
-      return personId;
+    
+    if (existing?.person_id && existing.person_id !== personId) {
+      // Merge our loser into their survivor
+      await supabase.rpc("merge_persons", {
+        survivor: existing.person_id,
+        absorbed: [personId],
+      });
+      return existing.person_id as string;
     }
   }
+}
+
+return personId;
 
   // 4. Create new person
   const displayName =
@@ -255,19 +242,6 @@ async function resolvePersonId(
   return personId;
 }
 
-async function findMemberId(
-  supabase: SupabaseClient,
-  neonAccountId: string | null,
-): Promise<string | null> {
-  if (!neonAccountId) return null;
-  const { data } = await supabase
-    .from("members")
-    .select("id")
-    .eq("neon_account_id", neonAccountId)
-    .maybeSingle();
-  return (data?.id as string) ?? null;
-}
-
 // ---- Registration handler ----
 
 async function handleRegistration(
@@ -305,9 +279,6 @@ async function handleRegistration(
         last_name: lastName,
       });
 
-      // Resolve member_id
-      const memberId = await findMemberId(supabase, accId);
-
       // Build the event_attendees row
       const row = {
         neon_attendee_id: String(a.attendeeId),
@@ -329,7 +300,6 @@ async function handleRegistration(
         registration_date: a.registrationDate ?? null,
         marked_attended: a.markedAttended ?? null,
         person_id: personId,
-        member_id: memberId,
         updated_at: new Date().toISOString(),
       };
 
