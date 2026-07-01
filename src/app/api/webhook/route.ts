@@ -91,6 +91,7 @@ async function resolvePersonId(
 ): Promise<string> {
   const accId = rec.neon_account_id ? String(rec.neon_account_id) : null;
   const email = normEmail(rec.email);
+  const normName = normalizeName(rec.first_name, rec.last_name);
 
   // 1. neon_account_id match
   if (accId) {
@@ -114,7 +115,6 @@ async function resolvePersonId(
       .maybeSingle();
     if (hit?.person_id) {
       const personId = hit.person_id as string;
-      // Backfill the neon_account_id so next time it's a direct hit
       if (accId) {
         await supabase
           .from("person_identifier")
@@ -134,7 +134,57 @@ async function resolvePersonId(
     }
   }
 
-  // 3. Create new person
+  // 3. name_normalized match (catches guests without account_id/email
+  //    who have been seen before under the same name in any source)
+  if (normName) {
+    const { data: hit } = await supabase
+      .from("person_identifier")
+      .select("person_id")
+      .eq("id_type", "name_normalized")
+      .eq("id_value", normName)
+      .maybeSingle();
+    if (hit?.person_id) {
+      const personId = hit.person_id as string;
+      // Backfill identifiers so future lookups are direct hits
+      const backfill: Array<{
+        person_id: string;
+        source: string;
+        id_type: string;
+        id_value: string;
+        confidence: string;
+      }> = [];
+      if (accId) {
+        backfill.push({
+          person_id: personId,
+          source: "neon",
+          id_type: "neon_account_id",
+          id_value: accId,
+          confidence: "auto",
+        });
+      }
+      if (email) {
+        backfill.push({
+          person_id: personId,
+          source: "neon",
+          id_type: "email",
+          id_value: email,
+          confidence: "auto",
+        });
+      }
+      if (backfill.length > 0) {
+        await supabase
+          .from("person_identifier")
+          .insert(backfill)
+          .then(
+            () => undefined,
+            () => undefined,
+          );
+      }
+      return personId;
+    }
+  }
+
+  // 4. Create new person
   const displayName =
     [rec.first_name, rec.last_name].filter(Boolean).join(" ").trim() || null;
 
@@ -186,7 +236,6 @@ async function resolvePersonId(
     }
   }
 
-  const normName = normalizeName(rec.first_name, rec.last_name);
   if (normName) {
     await supabase
       .from("person_identifier")
