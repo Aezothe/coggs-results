@@ -136,40 +136,52 @@ async function resolvePersonId(
 
   // 3. name_normalized match (catches guests without account_id/email
   //    who have been seen before under the same name in any source)
-if (normName) {
-  const { error: nnErr } = await supabase
-    .from("person_identifier")
-    .insert({
-      person_id: personId,
-      source: "neon",
-      id_type: "name_normalized",
-      id_value: normName,
-      confidence: "auto",
-    });
-
-  // If someone else beat us to inserting this name_normalized identifier,
-  // it means another webhook created a person with the same name at the same time.
-  // Merge our newly-created person into theirs.
-  if (nnErr && String(nnErr.message).includes("duplicate")) {
-    const { data: existing } = await supabase
+  if (normName) {
+    const { data: hit } = await supabase
       .from("person_identifier")
       .select("person_id")
       .eq("id_type", "name_normalized")
       .eq("id_value", normName)
       .maybeSingle();
-    
-    if (existing?.person_id && existing.person_id !== personId) {
-      // Merge our loser into their survivor
-      await supabase.rpc("merge_persons", {
-        survivor: existing.person_id,
-        absorbed: [personId],
-      });
-      return existing.person_id as string;
+    if (hit?.person_id) {
+      const personId = hit.person_id as string;
+      const backfill: Array<{
+        person_id: string;
+        source: string;
+        id_type: string;
+        id_value: string;
+        confidence: string;
+      }> = [];
+      if (accId) {
+        backfill.push({
+          person_id: personId,
+          source: "neon",
+          id_type: "neon_account_id",
+          id_value: accId,
+          confidence: "auto",
+        });
+      }
+      if (email) {
+        backfill.push({
+          person_id: personId,
+          source: "neon",
+          id_type: "email",
+          id_value: email,
+          confidence: "auto",
+        });
+      }
+      if (backfill.length > 0) {
+        await supabase
+          .from("person_identifier")
+          .insert(backfill)
+          .then(
+            () => undefined,
+            () => undefined,
+          );
+      }
+      return personId;
     }
   }
-}
-
-return personId;
 
   // 4. Create new person
   const displayName =
@@ -223,8 +235,12 @@ return personId;
     }
   }
 
+  // 5. Insert name_normalized with race guard.
+  //    If two webhooks race, the unique constraint on (id_type, id_value)
+  //    will make the second insert fail. When that happens, we find whoever
+  //    won and merge our newly-created person into theirs.
   if (normName) {
-    await supabase
+    const { error: nnErr } = await supabase
       .from("person_identifier")
       .insert({
         person_id: personId,
@@ -232,11 +248,24 @@ return personId;
         id_type: "name_normalized",
         id_value: normName,
         confidence: "auto",
-      })
-      .then(
-        () => undefined,
-        () => undefined,
-      );
+      });
+
+    if (nnErr && String(nnErr.message).includes("duplicate")) {
+      const { data: existing } = await supabase
+        .from("person_identifier")
+        .select("person_id")
+        .eq("id_type", "name_normalized")
+        .eq("id_value", normName)
+        .maybeSingle();
+
+      if (existing?.person_id && existing.person_id !== personId) {
+        await supabase.rpc("merge_persons", {
+          survivor: existing.person_id,
+          absorbed: [personId],
+        });
+        return existing.person_id as string;
+      }
+    }
   }
 
   return personId;
