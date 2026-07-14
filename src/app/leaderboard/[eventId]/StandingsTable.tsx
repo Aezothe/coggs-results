@@ -545,55 +545,58 @@ export function StandingsTable({
           )}
         </div>
 
-        {stageList.length > 0 && (
-          <div className="mb-2 text-sm">
-            <div className="text-surface-muted mb-1">Stages</div>
-            <div className="flex flex-wrap items-center gap-2 mb-2">
-              {stageList.map((s) => {
-                const isOn = selectedStageIds.includes(s.stage_id);
-                return (
-                  <button
-                    key={s.stage_id}
-                    type="button"
-                    onClick={() => onToggleStage(s.stage_id)}
-                    className={`${chipBase} ${isOn ? chipActive : chipInactive}`}
-                  >
-                    {s.name}
-                  </button>
-                );
-              })}
-            </div>
-
+    {stageList.length > 0 && (
+      <div className="mb-2 text-sm">
+        <div className="text-surface-muted mb-1">Stages</div>
+        <div className="flex flex-wrap items-center gap-2 mb-2">
+          {stageList.map((s) => {
+            const isOn = selectedStageIds.includes(s.stage_id);
+            return (
+              <button
+                key={s.stage_id}
+                type="button"
+                onClick={() => onToggleStage(s.stage_id)}
+                className={`${chipBase} ${isOn ? chipActive : chipInactive}`}
+              >
+                {s.name}
+              </button>
+            );
+          })}
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            type="button"
+            onClick={onShowAllStages}
+            disabled={selectedStageIds.length === stageList.length}
+            className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            Show all
+          </button>
+          <button
+            type="button"
+            onClick={onHideAllStages}
+            disabled={selectedStageIds.length === 0}
+            className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
+          >
+            Hide all
+          </button>
+        </div>
+        {visibleStages.length > 0 && (
+          <div className="mt-3">
+            <div className="text-surface-muted mb-1">Splits</div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={onShowAllStages}
-                disabled={selectedStageIds.length === stageList.length}
-                className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
+                onClick={onToggleSplits}
+                className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
               >
-                Show all
+                {showSplits ? "Hide splits" : "Show splits"}
               </button>
-              <button
-                type="button"
-                onClick={onHideAllStages}
-                disabled={selectedStageIds.length === 0}
-                className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
-              >
-                Hide all
-              </button>
-
-              {visibleStages.length > 0 && (
-                <button
-                  type="button"
-                  onClick={onToggleSplits}
-                  className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
-                >
-                  {showSplits ? "Hide splits" : "Show splits"}
-                </button>
-              )}
             </div>
           </div>
         )}
+      </div>
+    )}
       </div>
 
       <div
