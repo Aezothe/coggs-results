@@ -224,23 +224,13 @@ export default async function LeaderboardPage({
   let errorMsg: string | null = null;
 
   try {
-    standings = await fetchStandings(eventId);
-    stageTimes = await fetchStageTimes(eventId);
-    splitTimes = await fetchSplitTimes(eventId);
+    [standings, stageTimes, splitTimes] = await Promise.all([
+      fetchStandings(eventId),
+      fetchStageTimes(eventId),
+      fetchSplitTimes(eventId),
+    ]);
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
-  }
-
-  try {
-    eventTags = await fetchEventTags(eventId);
-  } catch {
-    eventTags = [];
-  }
-
-  try {
-    locations = await fetchEventLocations(eventId);
-  } catch {
-    locations = [];
   }
 
   const courses = uniqueSorted(standings, "course_name");
