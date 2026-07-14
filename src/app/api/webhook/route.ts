@@ -365,19 +365,33 @@ export async function POST(req: NextRequest) {
     console.log("Event Type:", eventTrigger);
 
     if (
-      eventTrigger === "createEventRegistration" ||
-      eventTrigger === "updateEventRegistration"
+    eventTrigger === "createEventRegistration" ||
+    eventTrigger === "updateEventRegistration"
     ) {
-      const result = await handleRegistration(body as NeonRegistrationPayload);
-      console.log(
+    const result = await handleRegistration(body as NeonRegistrationPayload);
+
+    console.log(
         `[${eventTrigger}] Done: ${result.processed} processed, ${result.errors.length} errors`,
-      );
-      if (result.errors.length > 0) {
+    );
+
+    if (result.errors.length > 0) {
         console.log("Errors:", result.errors);
-      }
+    }
+    } else if (eventTrigger === "deleteEventRegistration") {
+    const result = await handleRegistrationDelete(
+        body as NeonDeleteRegistrationPayload,
+    );
+
+    console.log(
+        `[${eventTrigger}] Done: ${result.deleted} deleted, ${result.errors.length} errors`,
+    );
+
+    if (result.errors.length > 0) {
+        console.log("Errors:", result.errors);
+    }
     } else {
-      // For other webhook types, keep logging the full payload so we can see what comes through
-      console.log("Full Payload:", JSON.stringify(body, null, 2));
+    // For other webhook types, keep logging the full payload so we can see what comes through
+    console.log("Full Payload:", JSON.stringify(body, null, 2));
     }
 
     console.log("=== End Webhook ===");
@@ -392,6 +406,54 @@ export async function POST(req: NextRequest) {
       { status: 500 },
     );
   }
+}
+
+type NeonDeleteRegistrationPayload = {
+  eventTrigger: string;
+  eventTimestamp?: string;
+  data?: {
+    registration?: {
+      registrationId?: number | string;
+      deletedDateTime?: string;
+    };
+  };
+};
+
+async function handleRegistrationDelete(
+  payload: NeonDeleteRegistrationPayload,
+): Promise<{ deleted: number; errors: string[] }> {
+  const supabase = getServiceClient();
+
+  const neonRegistrationId =
+    payload.data?.registration?.registrationId != null
+      ? String(payload.data.registration.registrationId)
+      : null;
+
+  if (!neonRegistrationId) {
+    return {
+      deleted: 0,
+      errors: ["Missing data.registration.registrationId"],
+    };
+  }
+
+  const { data, error } = await supabase
+    .from("event_attendees")
+    .delete()
+    .eq("neon_registration_id", neonRegistrationId)
+    .select("id, neon_attendee_id, neon_registration_id, neon_event_id");
+
+  if (error) {
+    throw new Error(`Failed to delete registration ${neonRegistrationId}: ${error.message}`);
+  }
+
+  console.log(
+    `[deleteEventRegistration] Deleted ${data?.length ?? 0} attendee rows for Neon registration ${neonRegistrationId}`,
+  );
+
+  return {
+    deleted: data?.length ?? 0,
+    errors: [],
+  };
 }
 
 export async function GET() {

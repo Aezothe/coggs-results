@@ -376,10 +376,17 @@ export function StandingsTable({
     { key: "position", dir: "asc" },
   );
 
-  const totalInCourse = standings.filter(
-    (r) => r.course_name === course,
-  ).length;
-  const ridersShownLabel = `${sorted.length} of ${totalInCourse} riders`;
+  const totalInScope = useMemo(
+    () =>
+      standings.filter(
+        (r) =>
+          r.course_name === course &&
+          r.scope_type === displayScope &&
+          (!klass || r.class_name === klass),
+      ).length,
+    [standings, course, displayScope, klass],
+  );
+  const ridersShownLabel = `${sorted.length} of ${totalInScope} riders`;
 
   const filtersExplicitlySet = filtersOpen !== null;
   const filtersBlockClasses = filtersExplicitlySet
@@ -462,7 +469,7 @@ export function StandingsTable({
 
           <span className="ml-auto text-sm text-surface-muted self-center">
             {compareOnly && selectedRiderIds.length > 0
-              ? `Comparing ${sorted.length} of ${totalInCourse}`
+              ? `Comparing ${sorted.length} of ${totalInScope}`
               : ridersShownLabel}
           </span>
         </div>
