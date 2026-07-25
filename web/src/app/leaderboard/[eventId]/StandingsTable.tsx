@@ -4,7 +4,7 @@ import React from "react";
 import Link from "next/link";
 import { useCallback, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import { formatTime } from "@/lib/format";
+import { formatTime, hasHundredths } from "@/lib/format";
 import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
 import type { StandingsRow, StageTime, SplitTime } from "./page";
@@ -212,6 +212,18 @@ export function StandingsTable({
   }
 
   const displayScope = klass ? "class" : "overall";
+
+
+const showHundredths = useMemo(() => {
+  for (const s of stageTimes) if (hasHundredths(s.time_ms)) return true;
+  for (const sp of splitTimes) if (hasHundredths(sp.time_ms)) return true;
+  for (const r of standings) {
+    if (hasHundredths(r.total_time_ms)) return true;
+    if (hasHundredths(r.time_back_ms)) return true;
+  }
+  return false;
+}, [stageTimes, splitTimes, standings]);
+
 
   const visibleClasses = useMemo(() => {
     const set = new Set<string>();
@@ -731,7 +743,7 @@ export function StandingsTable({
                           <div className="leading-tight">
                             <div className="text-surface-foreground">
                               {stage?.time_ms
-                                ? formatTime(stage.time_ms)
+                                ? formatTime(stage.time_ms, showHundredths)
                                 : ""}
                             </div>
                             <div className="text-xs text-surface-muted">
@@ -755,7 +767,7 @@ export function StandingsTable({
                               <div className="leading-tight">
                                 <div className="text-surface-foreground">
                                   {split?.time_ms
-                                    ? formatTime(split.time_ms)
+                                    ? formatTime(split.time_ms, showHundredths)
                                     : ""}
                                 </div>
                                 <div className="text-xs text-surface-muted">
@@ -771,7 +783,7 @@ export function StandingsTable({
 
                   <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
                     <div className="text-surface-foreground">
-                      {row.is_dnf ? "DNF" : formatTime(row.total_time_ms)}
+                      {row.is_dnf ? "DNF" : formatTime(row.total_time_ms, showHundredths)}
                     </div>
                     <div className="text-xs">&nbsp;</div>
                   </td>
@@ -780,7 +792,7 @@ export function StandingsTable({
                     <div>
                       {row.is_dnf || row.time_back_ms == null
                         ? ""
-                        : `+${formatTime(row.time_back_ms)}`}
+                        : `+${formatTime(row.time_back_ms, showHundredths)}`}
                     </div>
                     <div className="text-xs">&nbsp;</div>
                   </td>
