@@ -13,6 +13,7 @@ type SplitDef = {
   split_segment_id: string;
   split_name: string;
   split_ordinal: number;
+  counts_toward_total: boolean;   // NEW
 };
 
 type SortKey =
@@ -316,6 +317,7 @@ const showHundredths = useMemo(() => {
           split_segment_id: row.split_segment_id,
           split_name: row.split_name,
           split_ordinal: row.split_ordinal,
+          counts_toward_total: row.counts_toward_total,   // NEW
         });
       }
     }
@@ -667,6 +669,20 @@ const showHundredths = useMemo(() => {
                           label={
                             <span className="text-xs font-normal text-surface-muted">
                               {sp.split_name}
+                              {!sp.counts_toward_total && (
+                                <svg
+                                  viewBox="0 0 24 24" width="11" height="11"
+                                  className="ml-1 inline-block align-middle text-surface-muted"
+                                  fill="none" stroke="currentColor" strokeWidth="2"
+                                  strokeLinecap="round" strokeLinejoin="round"
+                                  role="img" aria-label="Un-timed segment"
+                                >
+                                  <title>Un-timed segment — not included in the total</title>
+                                  <circle cx="12" cy="12" r="9" />
+                                  <path d="M12 8v4l2 2" />
+                                  <line x1="4" y1="4" x2="20" y2="20" />
+                                </svg>
+                              )}
                             </span>
                           }
                           sortKey={`split:${sp.split_segment_id}`}
@@ -674,13 +690,12 @@ const showHundredths = useMemo(() => {
                           currentDir={sort.dir}
                           onSort={onSort}
                           align="right"
-                          className="min-w-[75px]"
+                          className={`min-w-[75px] ${sp.counts_toward_total ? "" : "opacity-60"}`}
                         />
                       ))}
-                    </React.Fragment>
-                  );
-                })}
-
+                            </React.Fragment>
+    );
+  })}
                 <SortableHeader<SortKey>
                   label="Total"
                   sortKey="total_time_ms"
@@ -766,7 +781,9 @@ const showHundredths = useMemo(() => {
                           return (
                             <td
                               key={`split-${sp.split_segment_id}`}
-                              className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover"
+                               className={`px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover ${
+                                  sp.counts_toward_total ? "" : "opacity-60"
+                                }`}
                             >
                               <div className="leading-tight">
                                 <div className="text-surface-foreground">
