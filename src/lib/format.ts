@@ -1,10 +1,39 @@
-export function formatTime(ms: number | null | undefined): string {
-    if (ms == null) return "";
-    const s = ms / 1000;
-    const m = Math.floor(s / 60);
-    const sec = (s % 60).toFixed(2);
-    return `${m}:${sec.padStart(5, "0")}`;
+/**
+ * Format a millisecond duration as a race time.
+ * Adaptive hours: shows hours only when >= 1 hour.
+ * @param showHundredths when false, omits the .cc suffix (whole-second display)
+ */
+export function formatTime(
+  ms: number | null | undefined,
+  showHundredths: boolean = true,
+): string {
+  if (ms == null) return "";
+  const neg = ms < 0;
+  const abs = Math.abs(ms);
+
+  const totalSec = Math.floor(abs / 1000);
+  const h = Math.floor(totalSec / 3600);
+  const m = Math.floor((totalSec % 3600) / 60);
+  const s = totalSec % 60;
+  const cs = Math.floor((abs % 1000) / 10);
+
+  const ss = String(s).padStart(2, "0");
+  const suffix = showHundredths ? `.${String(cs).padStart(2, "0")}` : "";
+
+  let out: string;
+  if (h > 0) {
+    out = `${h}:${String(m).padStart(2, "0")}:${ss}${suffix}`;
+  } else {
+    out = `${m}:${ss}${suffix}`;
   }
+  return neg ? `-${out}` : out;
+}
+
+/** True if the duration has a non-zero hundredths component. */
+export function hasHundredths(ms: number | null | undefined): boolean {
+  return ms != null && ms % 1000 !== 0;
+}
+
   
   export function escapeHtml(s: unknown): string {
     return String(s ?? "")

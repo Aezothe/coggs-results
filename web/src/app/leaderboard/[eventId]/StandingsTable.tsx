@@ -388,11 +388,10 @@ const showHundredths = useMemo(() => {
     { key: "position", dir: "asc" },
   );
 
-  const totalInEvent = useMemo(
-    () => standings.filter((r) => r.scope_type === "overall").length,
-    [standings],
-  );
-  const ridersShownLabel = `${sorted.length} of ${totalInEvent} riders`;
+  const totalInCourse = standings.filter(
+    (r) => r.course_name === course,
+  ).length;
+  const ridersShownLabel = `${sorted.length} of ${totalInCourse} riders`;
 
   const filtersExplicitlySet = filtersOpen !== null;
   const filtersBlockClasses = filtersExplicitlySet
@@ -475,7 +474,7 @@ const showHundredths = useMemo(() => {
 
           <span className="ml-auto text-sm text-surface-muted self-center">
             {compareOnly && selectedRiderIds.length > 0
-              ? `Comparing ${sorted.length} of ${totalInEvent}`
+              ? `Comparing ${sorted.length} of ${totalInCourse}`
               : ridersShownLabel}
           </span>
         </div>
@@ -557,58 +556,55 @@ const showHundredths = useMemo(() => {
           )}
         </div>
 
-    {stageList.length > 0 && (
-      <div className="mb-2 text-sm">
-        <div className="text-surface-muted mb-1">Stages</div>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {stageList.map((s) => {
-            const isOn = selectedStageIds.includes(s.stage_id);
-            return (
-              <button
-                key={s.stage_id}
-                type="button"
-                onClick={() => onToggleStage(s.stage_id)}
-                className={`${chipBase} ${isOn ? chipActive : chipInactive}`}
-              >
-                {s.name}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onShowAllStages}
-            disabled={selectedStageIds.length === stageList.length}
-            className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            Show all
-          </button>
-          <button
-            type="button"
-            onClick={onHideAllStages}
-            disabled={selectedStageIds.length === 0}
-            className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            Hide all
-          </button>
-        </div>
-        {visibleStages.length > 0 && (
-          <div className="mt-3">
-            <div className="text-surface-muted mb-1">Splits</div>
+        {stageList.length > 0 && (
+          <div className="mb-2 text-sm">
+            <div className="text-surface-muted mb-1">Stages</div>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {stageList.map((s) => {
+                const isOn = selectedStageIds.includes(s.stage_id);
+                return (
+                  <button
+                    key={s.stage_id}
+                    type="button"
+                    onClick={() => onToggleStage(s.stage_id)}
+                    className={`${chipBase} ${isOn ? chipActive : chipInactive}`}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
+
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={onToggleSplits}
-                className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
+                onClick={onShowAllStages}
+                disabled={selectedStageIds.length === stageList.length}
+                className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {showSplits ? "Hide splits" : "Show splits"}
+                Show all
               </button>
+              <button
+                type="button"
+                onClick={onHideAllStages}
+                disabled={selectedStageIds.length === 0}
+                className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                Hide all
+              </button>
+
+              {visibleStages.length > 0 && (
+                <button
+                  type="button"
+                  onClick={onToggleSplits}
+                  className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
+                >
+                  {showSplits ? "Hide splits" : "Show splits"}
+                </button>
+              )}
             </div>
           </div>
         )}
-      </div>
-    )}
       </div>
 
       <div
