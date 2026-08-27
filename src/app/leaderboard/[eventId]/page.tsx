@@ -162,26 +162,53 @@ async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
 
 async function fetchStageTimes(eventId: string): Promise<StageTime[]> {
   const supabase = getServiceClient();
-  const { data, error } = await supabase
-    .from("event_stage_times")
-    .select(
-      "entry_id, stage_id, stage_name, ordinal, time_ms, stage_position_course, finishers_course, stage_position_class, finishers_class",
-    )
-    .eq("event_id", eventId);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as StageTime[];
+  const pageSize = 1000;
+  const all: StageTime[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("event_stage_times")
+      .select(
+        "entry_id, stage_id, stage_name, ordinal, time_ms, stage_position_course, finishers_course, stage_position_class, finishers_class",
+      )
+      .eq("event_id", eventId)
+      .order("entry_id", { ascending: true })
+      .order("ordinal", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...(data as StageTime[]));
+    if (data.length < pageSize) break;
+    offset += pageSize;
+  }
+  return all;
 }
 
 async function fetchSplitTimes(eventId: string): Promise<SplitTime[]> {
   const supabase = getServiceClient();
-  const { data, error } = await supabase
-    .from("event_split_times")
-    .select(
-      "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position_course, split_finishers_course, split_position_class, split_finishers_class",
-    )
-    .eq("event_id", eventId);
-  if (error) throw new Error(error.message);
-  return (data ?? []) as SplitTime[];
+  const pageSize = 1000;
+  const all: SplitTime[] = [];
+  let offset = 0;
+  while (true) {
+    const { data, error } = await supabase
+      .from("event_split_times")
+      .select(
+        "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position_course, split_finishers_course, split_position_class, split_finishers_class",
+      )
+      .eq("event_id", eventId)
+      // Deterministic order so pagination is stable across pages. Ordering by
+      // entry_id keeps each rider's rows together; split_ordinal keeps columns
+      // in course order.
+      .order("entry_id", { ascending: true })
+      .order("split_ordinal", { ascending: true })
+      .range(offset, offset + pageSize - 1);
+    if (error) throw new Error(error.message);
+    if (!data || data.length === 0) break;
+    all.push(...(data as SplitTime[]));
+    if (data.length < pageSize) break;
+    offset += pageSize;
+  }
+  return all;
 }
 
 function uniqueSorted(
