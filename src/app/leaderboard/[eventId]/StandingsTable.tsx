@@ -13,7 +13,7 @@ type SplitDef = {
   split_segment_id: string;
   split_name: string;
   split_ordinal: number;
-  counts_toward_total: boolean;   // NEW
+  counts_toward_total: boolean;
 };
 
 type SortKey =
@@ -80,16 +80,18 @@ export function StandingsTable({
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
   const [showSplits, setShowSplits] = useState(initialShowSplits);
+  // Un-timed splits (aid-station crossings) are shown by default; this toggle
+  // lets the user hide them so only the timed race legs remain. Local state —
+  // no URL persistence needed.
+  const [showUntimed, setShowUntimed] = useState(true);
   const [selectedStageIds, setSelectedStageIds] = useState<string[]>(
     initialSelectedStageIds,
   );
-
   const [selectedRiderIds, setSelectedRiderIds] = useState<string[]>(
     initialSelectedRiderIds,
   );
   const [compareOnly, setCompareOnly] = useState(initialCompareOnly);
   const [riderQuery, setRiderQuery] = useState("");
-
   const [filtersOpen, setFiltersOpen] = useState<boolean | null>(null);
 
   const classSelected = Boolean(klass);
@@ -158,6 +160,10 @@ export function StandingsTable({
     updateUrl({ nextShowSplits: next });
   }
 
+  function onToggleUntimed() {
+    setShowUntimed((prev) => !prev);
+  }
+
   function onToggleStage(stageId: string) {
     const next = selectedStageIds.includes(stageId)
       ? selectedStageIds.filter((id) => id !== stageId)
@@ -214,17 +220,15 @@ export function StandingsTable({
 
   const displayScope = klass ? "class" : "overall";
 
-
-const showHundredths = useMemo(() => {
-  for (const s of stageTimes) if (hasHundredths(s.time_ms)) return true;
-  for (const sp of splitTimes) if (hasHundredths(sp.time_ms)) return true;
-  for (const r of standings) {
-    if (hasHundredths(r.total_time_ms)) return true;
-    if (hasHundredths(r.time_back_ms)) return true;
-  }
-  return false;
-}, [stageTimes, splitTimes, standings]);
-
+  const showHundredths = useMemo(() => {
+    for (const s of stageTimes) if (hasHundredths(s.time_ms)) return true;
+    for (const sp of splitTimes) if (hasHundredths(sp.time_ms)) return true;
+    for (const r of standings) {
+      if (hasHundredths(r.total_time_ms)) return true;
+      if (hasHundredths(r.time_back_ms)) return true;
+    }
+    return false;
+  }, [stageTimes, splitTimes, standings]);
 
   const visibleClasses = useMemo(() => {
     const set = new Set<string>();
@@ -271,16 +275,13 @@ const showHundredths = useMemo(() => {
       compareOnly && selectedRiderIds.length > 0
         ? scopedRiders.filter((r) => selectedRiderIds.includes(r.entry_id))
         : scopedRiders;
-
     return [...base].sort((a, b) => {
       const ad = !!a.is_dnf;
       const bd = !!b.is_dnf;
       if (ad !== bd) return ad ? 1 : -1;
-
       const ap = a.position ?? Number.MAX_SAFE_INTEGER;
       const bp = b.position ?? Number.MAX_SAFE_INTEGER;
       if (ap !== bp) return ap - bp;
-
       const al = (a.last_name ?? "").localeCompare(b.last_name ?? "");
       if (al !== 0) return al;
       return (a.first_name ?? "").localeCompare(b.first_name ?? "");
@@ -317,7 +318,7 @@ const showHundredths = useMemo(() => {
           split_segment_id: row.split_segment_id,
           split_name: row.split_name,
           split_ordinal: row.split_ordinal,
-          counts_toward_total: row.counts_toward_total,   // NEW
+          counts_toward_total: row.counts_toward_total,
         });
       }
     }
@@ -332,6 +333,20 @@ const showHundredths = useMemo(() => {
     }
     return out;
   }, [splitTimes]);
+
+  // Splits to render for a stage, honoring both the show-splits and
+  // show-untimed toggles. Un-timed splits (counts_toward_total === false) drop
+  // out when showUntimed is off.
+  const splitsForStage = useCallback(
+    (stageId: string): SplitDef[] => {
+      if (!showSplits) return [];
+      const all = splitsByStageId.get(stageId) ?? [];
+      return showUntimed
+        ? all
+        : all.filter((sp) => sp.counts_toward_total);
+    },
+    [showSplits, showUntimed, splitsByStageId],
+  );
 
   const stageList = useMemo(() => {
     const map = new Map<string, { name: string; ordinal: number }>();
@@ -357,6 +372,16 @@ const showHundredths = useMemo(() => {
     const set = new Set(selectedStageIds);
     return stageList.filter((s) => set.has(s.stage_id));
   }, [stageList, selectedStageIds]);
+
+  // Are there any un-timed splits among the visible stages? Used to gate the
+  // "Untimed" toggle section so it only appears when it can do something.
+  const hasUntimedSplits = useMemo(() => {
+    for (const s of visibleStages) {
+      const arr = splitsByStageId.get(s.stage_id) ?? [];
+      if (arr.some((sp) => !sp.counts_toward_total)) return true;
+    }
+    return false;
+  }, [visibleStages, splitsByStageId]);
 
   const getValue = useCallback(
     (row: StandingsRow, key: SortKey): string | number | null => {
@@ -394,6 +419,7 @@ const showHundredths = useMemo(() => {
     () => standings.filter((r) => r.scope_type === "overall").length,
     [standings],
   );
+
   const ridersShownLabel = `${sorted.length} of ${totalInEvent} riders`;
 
   const filtersExplicitlySet = filtersOpen !== null;
@@ -441,7 +467,6 @@ const showHundredths = useMemo(() => {
           </span>
         </button>
       </div>
-
       <div className={`${filtersBlockClasses} mb-4`}>
         <div className="flex flex-wrap gap-3 mb-3 items-center">
           <label className="flex items-center gap-2 text-sm">
@@ -458,7 +483,6 @@ const showHundredths = useMemo(() => {
               ))}
             </select>
           </label>
-
           <label className="flex items-center gap-2 text-sm">
             <span className="text-surface-muted">Class:</span>
             <select
@@ -474,14 +498,12 @@ const showHundredths = useMemo(() => {
               ))}
             </select>
           </label>
-
           <span className="ml-auto text-sm text-surface-muted self-center">
             {compareOnly && selectedRiderIds.length > 0
               ? `Comparing ${sorted.length} of ${totalInEvent}`
               : ridersShownLabel}
           </span>
         </div>
-
         <div className="mb-4 text-sm">
           <div className="relative max-w-md">
             <input
@@ -514,7 +536,6 @@ const showHundredths = useMemo(() => {
               </ul>
             )}
           </div>
-
           {selectedRiderIds.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {selectedRiderIds.map((entryId) => {
@@ -537,7 +558,6 @@ const showHundredths = useMemo(() => {
                   </span>
                 );
               })}
-
               <button
                 type="button"
                 onClick={onToggleCompareOnly}
@@ -547,7 +567,6 @@ const showHundredths = useMemo(() => {
                   ? "Showing selected only"
                   : `Show only selected (${selectedRiderIds.length})`}
               </button>
-
               <button
                 type="button"
                 onClick={onClearRiders}
@@ -558,67 +577,78 @@ const showHundredths = useMemo(() => {
             </div>
           )}
         </div>
-
-    {stageList.length > 0 && (
-      <div className="mb-2 text-sm">
-        <div className="text-surface-muted mb-1">Stages</div>
-        <div className="flex flex-wrap items-center gap-2 mb-2">
-          {stageList.map((s) => {
-            const isOn = selectedStageIds.includes(s.stage_id);
-            return (
-              <button
-                key={s.stage_id}
-                type="button"
-                onClick={() => onToggleStage(s.stage_id)}
-                className={`${chipBase} ${isOn ? chipActive : chipInactive}`}
-              >
-                {s.name}
-              </button>
-            );
-          })}
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onShowAllStages}
-            disabled={selectedStageIds.length === stageList.length}
-            className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            Show all
-          </button>
-          <button
-            type="button"
-            onClick={onHideAllStages}
-            disabled={selectedStageIds.length === 0}
-            className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
-          >
-            Hide all
-          </button>
-        </div>
-        {visibleStages.length > 0 && (
-          <div className="mt-3">
-            <div className="text-surface-muted mb-1">Splits</div>
+        {stageList.length > 0 && (
+          <div className="mb-2 text-sm">
+            <div className="text-surface-muted mb-1">Stages</div>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              {stageList.map((s) => {
+                const isOn = selectedStageIds.includes(s.stage_id);
+                return (
+                  <button
+                    key={s.stage_id}
+                    type="button"
+                    onClick={() => onToggleStage(s.stage_id)}
+                    className={`${chipBase} ${isOn ? chipActive : chipInactive}`}
+                  >
+                    {s.name}
+                  </button>
+                );
+              })}
+            </div>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={onToggleSplits}
-                className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
+                onClick={onShowAllStages}
+                disabled={selectedStageIds.length === stageList.length}
+                className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
               >
-                {showSplits ? "Hide splits" : "Show splits"}
+                Show all
+              </button>
+              <button
+                type="button"
+                onClick={onHideAllStages}
+                disabled={selectedStageIds.length === 0}
+                className={`${chipBase} ${chipInactive} disabled:opacity-50 disabled:cursor-not-allowed`}
+              >
+                Hide all
               </button>
             </div>
+            {visibleStages.length > 0 && (
+              <div className="mt-3">
+                <div className="text-surface-muted mb-1">Splits</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onToggleSplits}
+                    className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
+                  >
+                    {showSplits ? "Hide splits" : "Show splits"}
+                  </button>
+                </div>
+              </div>
+            )}
+            {visibleStages.length > 0 && showSplits && hasUntimedSplits && (
+              <div className="mt-3">
+                <div className="text-surface-muted mb-1">Untimed</div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={onToggleUntimed}
+                    className={`${chipBase} ${showUntimed ? chipActive : chipInactive}`}
+                  >
+                    {showUntimed ? "Hide untimed" : "Show untimed"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
-    )}
-      </div>
-
       <div
         className={`${collapsedSummaryClasses} mb-3 text-sm text-surface-muted px-1`}
       >
         {ridersShownLabel}
       </div>
-
       {sorted.length === 0 ? (
         <p className="text-surface-muted">
           {compareOnly && selectedRiderIds.length > 0
@@ -638,11 +668,8 @@ const showHundredths = useMemo(() => {
                   onSort={onSort}
                   className="sticky left-0 bg-surface-emphasis z-20 min-w-[180px]"
                 />
-
                 {visibleStages.map((s) => {
-                  const splits = showSplits
-                    ? (splitsByStageId.get(s.stage_id) ?? [])
-                    : [];
+                  const splits = splitsForStage(s.stage_id);
                   return (
                     <React.Fragment key={`stage-group-${s.stage_id}`}>
                       <SortableHeader<SortKey>
@@ -667,17 +694,29 @@ const showHundredths = useMemo(() => {
                         <SortableHeader<SortKey>
                           key={`split-${sp.split_segment_id}`}
                           label={
-                            <span className="text-xs font-normal text-surface-muted">
+                            <span
+                              className={`text-xs font-normal text-surface-muted ${
+                                sp.counts_toward_total ? "" : "opacity-60"
+                              }`}
+                            >
                               {sp.split_name}
                               {!sp.counts_toward_total && (
                                 <svg
-                                  viewBox="0 0 24 24" width="11" height="11"
+                                  viewBox="0 0 24 24"
+                                  width="11"
+                                  height="11"
                                   className="ml-1 inline-block align-middle text-surface-muted"
-                                  fill="none" stroke="currentColor" strokeWidth="2"
-                                  strokeLinecap="round" strokeLinejoin="round"
-                                  role="img" aria-label="Un-timed segment"
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  role="img"
+                                  aria-label="Un-timed segment"
                                 >
-                                  <title>Un-timed segment — not included in the total</title>
+                                  <title>
+                                    Un-timed segment — not included in the total
+                                  </title>
                                   <circle cx="12" cy="12" r="9" />
                                   <path d="M12 8v4l2 2" />
                                   <line x1="4" y1="4" x2="20" y2="20" />
@@ -690,12 +729,12 @@ const showHundredths = useMemo(() => {
                           currentDir={sort.dir}
                           onSort={onSort}
                           align="right"
-                          className={`min-w-[75px] ${sp.counts_toward_total ? "" : "opacity-60"}`}
+                          className="min-w-[75px]"
                         />
                       ))}
-                            </React.Fragment>
-    );
-  })}
+                    </React.Fragment>
+                  );
+                })}
                 <SortableHeader<SortKey>
                   label="Total"
                   sortKey="total_time_ms"
@@ -716,13 +755,9 @@ const showHundredths = useMemo(() => {
                 />
               </tr>
             </thead>
-
             <tbody className="divide-y divide-surface-border">
               {sorted.map((row) => (
-                <tr
-                  key={row.entry_id}
-                  className="group hover:bg-surface-hover"
-                >
+                <tr key={row.entry_id} className="group hover:bg-surface-hover">
                   <td className="px-3 py-2 align-top sticky left-0 bg-surface group-hover:bg-surface-hover z-10 min-w-[180px]">
                     <div className="flex items-baseline gap-2">
                       <span className="text-surface-muted tabular-nums text-xs w-6 shrink-0">
@@ -731,7 +766,7 @@ const showHundredths = useMemo(() => {
                       <div className="leading-tight">
                         {row.person_id ? (
                           <Link
-                          href={`/person/${row.person_id}`}
+                            href={`/person/${row.person_id}`}
                             className="text-surface-foreground hover:underline"
                           >
                             {row.first_name} {row.last_name}
@@ -749,12 +784,9 @@ const showHundredths = useMemo(() => {
                       </div>
                     </div>
                   </td>
-
                   {visibleStages.map((s) => {
                     const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
-                    const splits = showSplits
-                      ? (splitsByStageId.get(s.stage_id) ?? [])
-                      : [];
+                    const splits = splitsForStage(s.stage_id);
                     const stagePos = stagePositionFor(stage, classSelected);
                     return (
                       <React.Fragment key={`stage-group-${s.stage_id}`}>
@@ -781,11 +813,13 @@ const showHundredths = useMemo(() => {
                           return (
                             <td
                               key={`split-${sp.split_segment_id}`}
-                               className={`px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover ${
+                              className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover"
+                            >
+                              <div
+                                className={`leading-tight ${
                                   sp.counts_toward_total ? "" : "opacity-60"
                                 }`}
-                            >
-                              <div className="leading-tight">
+                              >
                                 <div className="text-surface-foreground">
                                   {split?.time_ms
                                     ? formatTime(split.time_ms, showHundredths)
@@ -801,14 +835,14 @@ const showHundredths = useMemo(() => {
                       </React.Fragment>
                     );
                   })}
-
                   <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
                     <div className="text-surface-foreground">
-                      {row.is_dnf ? "DNF" : formatTime(row.total_time_ms, showHundredths)}
+                      {row.is_dnf
+                        ? "DNF"
+                        : formatTime(row.total_time_ms, showHundredths)}
                     </div>
                     <div className="text-xs">&nbsp;</div>
                   </td>
-
                   <td className="px-4 py-2 text-right tabular-nums text-surface-muted align-top min-w-[90px]">
                     <div>
                       {row.is_dnf || row.time_back_ms == null
