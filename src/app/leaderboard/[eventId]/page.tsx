@@ -193,8 +193,8 @@ async function fetchSplitTimes(eventId: string): Promise<SplitTime[]> {
   while (true) {
     const { data, error } = await supabase
       .from("event_split_times")
-      .select(
-        "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, time_ms, split_position_course, split_finishers_course, split_position_class, split_finishers_class",
+        .select(
+        "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, counts_toward_total, time_ms, split_position_course, split_finishers_course, split_position_class, split_finishers_class",
       )
       .eq("event_id", eventId)
       // Deterministic order so pagination is stable across pages. Ordering by
