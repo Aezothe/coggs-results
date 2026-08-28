@@ -657,7 +657,7 @@ export function StandingsTable({
         </p>
       ) : (
         <div className="overflow-auto max-h-[calc(100vh-140px)] lg:max-h-[calc(100vh-220px)]">
-          <table className="min-w-full text-sm table-auto standings-table">
+          <table className="min-w-full text-sm table-auto">
             <thead className="bg-surface-emphasis">
               <tr>
                 <SortableHeader<SortKey>
