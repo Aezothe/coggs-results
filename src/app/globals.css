@@ -103,3 +103,14 @@ body {
     font-size: 16px;
   }
 }
+
+.standings-table thead th {
+  position: sticky;
+  top: 0;
+  background-color: var(--surface-emphasis); /* match your token */
+  z-index: 10;
+}
+/* keep the Rider column above the rest when both sticky */
+.standings-table thead th:first-child {
+  z-index: 20;
+}
