@@ -688,7 +688,7 @@ export function StandingsTable({
                         currentDir={sort.dir}
                         onSort={onSort}
                         align="right"
-                        className="min-w-[90px] border-l border-surface-border"
+                        className="min-w-[90px] border-l border-surface-border bg-surface-emphasis"
                       />
                       {splits.map((sp) => (
                         <SortableHeader<SortKey>
@@ -729,7 +729,7 @@ export function StandingsTable({
                           currentDir={sort.dir}
                           onSort={onSort}
                           align="right"
-                          className="min-w-[75px]"
+                          className="min-w-[75px] bg-surface-emphasis"
                         />
                       ))}
                     </React.Fragment>
@@ -742,7 +742,7 @@ export function StandingsTable({
                   currentDir={sort.dir}
                   onSort={onSort}
                   align="right"
-                  className="min-w-[90px] border-l border-surface-border"
+                  className="min-w-[90px] border-l border-surface-border bg-surface-emphasis"
                 />
                 <SortableHeader<SortKey>
                   label="Back"
@@ -751,7 +751,7 @@ export function StandingsTable({
                   currentDir={sort.dir}
                   onSort={onSort}
                   align="right"
-                  className="min-w-[90px]"
+                  className="min-w-[90px] bg-surface-emphasis"
                 />
               </tr>
             </thead>
