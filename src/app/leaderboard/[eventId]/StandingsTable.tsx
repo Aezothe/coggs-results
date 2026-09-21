@@ -9,8 +9,9 @@ import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
 import type { StandingsRow, StageTime, SplitTime } from "./page";
 
+// A type alias at module scope is fine — it disappears at compile time.
+// The useState that used to live here has moved inside the component below.
 type DisplayMode = "elapsed" | "timeofday";
-const [displayMode, setDisplayMode] = useState<DisplayMode>("timeofday");
 
 type SplitDef = {
   split_segment_id: string;
@@ -80,13 +81,19 @@ export function StandingsTable({
   const router = useRouter();
   const [, startTransition] = useTransition();
 
+  // FIX (React #321): this useState was previously at module scope, which
+  // called a hook outside of a component and crashed the page on load.
+  const [displayMode, setDisplayMode] = useState<DisplayMode>("timeofday");
+
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
   const [showSplits, setShowSplits] = useState(initialShowSplits);
+
   // Un-timed splits (aid-station crossings) are shown by default; this toggle
   // lets the user hide them so only the timed race legs remain. Local state —
   // no URL persistence needed.
   const [showUntimed, setShowUntimed] = useState(true);
+
   const [selectedStageIds, setSelectedStageIds] = useState<string[]>(
     initialSelectedStageIds,
   );
@@ -344,9 +351,7 @@ export function StandingsTable({
     (stageId: string): SplitDef[] => {
       if (!showSplits) return [];
       const all = splitsByStageId.get(stageId) ?? [];
-      return showUntimed
-        ? all
-        : all.filter((sp) => sp.counts_toward_total);
+      return showUntimed ? all : all.filter((sp) => sp.counts_toward_total);
     },
     [showSplits, showUntimed, splitsByStageId],
   );
@@ -470,6 +475,7 @@ export function StandingsTable({
           </span>
         </button>
       </div>
+
       <div className={`${filtersBlockClasses} mb-4`}>
         <div className="flex flex-wrap gap-3 mb-3 items-center">
           <label className="flex items-center gap-2 text-sm">
@@ -486,6 +492,7 @@ export function StandingsTable({
               ))}
             </select>
           </label>
+
           <label className="flex items-center gap-2 text-sm">
             <span className="text-surface-muted">Class:</span>
             <select
@@ -501,12 +508,14 @@ export function StandingsTable({
               ))}
             </select>
           </label>
+
           <span className="ml-auto text-sm text-surface-muted self-center">
             {compareOnly && selectedRiderIds.length > 0
               ? `Comparing ${sorted.length} of ${totalInEvent}`
               : ridersShownLabel}
           </span>
         </div>
+
         <div className="mb-4 text-sm">
           <div className="relative max-w-md">
             <input
@@ -539,6 +548,7 @@ export function StandingsTable({
               </ul>
             )}
           </div>
+
           {selectedRiderIds.length > 0 && (
             <div className="flex flex-wrap items-center gap-2 mt-2">
               {selectedRiderIds.map((entryId) => {
@@ -580,6 +590,7 @@ export function StandingsTable({
             </div>
           )}
         </div>
+
         {stageList.length > 0 && (
           <div className="mb-2 text-sm">
             <div className="text-surface-muted mb-1">Stages</div>
@@ -616,6 +627,7 @@ export function StandingsTable({
                 Hide all
               </button>
             </div>
+
             {visibleStages.length > 0 && (
               <div className="mt-3">
                 <div className="text-surface-muted mb-1">Splits</div>
@@ -630,6 +642,7 @@ export function StandingsTable({
                 </div>
               </div>
             )}
+
             {visibleStages.length > 0 && showSplits && hasUntimedSplits && (
               <div className="mt-3">
                 <div className="text-surface-muted mb-1">Untimed</div>
@@ -644,33 +657,36 @@ export function StandingsTable({
                 </div>
               </div>
             )}
+
             <div className="mt-3">
-            <div className="text-surface-muted mb-1">Times</div>
-            <div className="flex flex-wrap items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setDisplayMode("timeofday")}
-                className={`${chipBase} ${displayMode === "timeofday" ? chipActive : chipInactive}`}
-              >
-                Time of day
-              </button>
-              <button
-                type="button"
-                onClick={() => setDisplayMode("elapsed")}
-                className={`${chipBase} ${displayMode === "elapsed" ? chipActive : chipInactive}`}
-              >
-                Elapsed
-              </button>
+              <div className="text-surface-muted mb-1">Times</div>
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("timeofday")}
+                  className={`${chipBase} ${displayMode === "timeofday" ? chipActive : chipInactive}`}
+                >
+                  Time of day
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDisplayMode("elapsed")}
+                  className={`${chipBase} ${displayMode === "elapsed" ? chipActive : chipInactive}`}
+                >
+                  Elapsed
+                </button>
+              </div>
             </div>
-          </div>
           </div>
         )}
       </div>
+
       <div
         className={`${collapsedSummaryClasses} mb-3 text-sm text-surface-muted px-1`}
       >
         {ridersShownLabel}
       </div>
+
       {sorted.length === 0 ? (
         <p className="text-surface-muted">
           {compareOnly && selectedRiderIds.length > 0
