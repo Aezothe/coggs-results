@@ -2,16 +2,18 @@
 
 import React from "react";
 import Link from "next/link";
-import { useCallback, useMemo, useState, useTransition } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  useTransition,
+} from "react";
 import { useRouter } from "next/navigation";
 import { formatTime, hasHundredths } from "@/lib/format";
 import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
 import type { StandingsRow, StageTime, SplitTime } from "./page";
-
-// A type alias at module scope is fine — it disappears at compile time.
-// The useState that used to live here has moved inside the component below.
-type DisplayMode = "elapsed" | "timeofday";
 
 type SplitDef = {
   split_segment_id: string;
@@ -51,6 +53,26 @@ function displayName(row: StandingsRow): string {
   return `${row.first_name ?? ""} ${row.last_name ?? ""}`.trim() || "Unnamed";
 }
 
+/** Small inline spinner used while a server round-trip is in flight. */
+function Spinner({ className = "" }: { className?: string }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="12"
+      height="12"
+      className={`animate-spin ${className}`}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="3"
+      role="img"
+      aria-label="Loading"
+    >
+      <circle cx="12" cy="12" r="9" className="opacity-25" />
+      <path d="M21 12a9 9 0 0 0-9-9" strokeLinecap="round" />
+    </svg>
+  );
+}
+
 export function StandingsTable({
   standings,
   stageTimes,
@@ -79,15 +101,19 @@ export function StandingsTable({
   eventId: string;
 }) {
   const router = useRouter();
-  const [, startTransition] = useTransition();
 
-  // FIX (React #321): this useState was previously at module scope, which
-  // called a hook outside of a component and crashed the page on load.
-  const [displayMode, setDisplayMode] = useState<DisplayMode>("timeofday");
+  // isPending is true while a startTransition() navigation is in flight. Since
+  // splits are now fetched server-side on demand (?splits=1), this is exactly
+  // the window where the ~3,600-row split query is running.
+  const [isPending, startTransition] = useTransition();
 
   const [course, setCourse] = useState(initialCourse);
   const [klass, setKlass] = useState(initialClass);
   const [showSplits, setShowSplits] = useState(initialShowSplits);
+
+  // Tracks whether the in-flight transition was started by the splits toggle,
+  // so the spinner appears on that button rather than on every navigation.
+  const [splitsPending, setSplitsPending] = useState(false);
 
   // Un-timed splits (aid-station crossings) are shown by default; this toggle
   // lets the user hide them so only the timed race legs remain. Local state —
@@ -104,7 +130,16 @@ export function StandingsTable({
   const [riderQuery, setRiderQuery] = useState("");
   const [filtersOpen, setFiltersOpen] = useState<boolean | null>(null);
 
+  // Clear the splits-specific flag once the transition resolves.
+  useEffect(() => {
+    if (!isPending) setSplitsPending(false);
+  }, [isPending]);
+
   const classSelected = Boolean(klass);
+
+  // Only the "turning splits on" direction actually waits on a query; turning
+  // them off returns instantly from cache. Gate the spinner accordingly.
+  const awaitingSplits = isPending && splitsPending && showSplits;
 
   function updateUrl(opts: {
     nextCourse?: string;
@@ -167,6 +202,9 @@ export function StandingsTable({
   function onToggleSplits() {
     const next = !showSplits;
     setShowSplits(next);
+    // Flag this transition as the splits fetch so the spinner targets this
+    // button. Only meaningful when turning them on.
+    setSplitsPending(next);
     updateUrl({ nextShowSplits: next });
   }
 
@@ -635,9 +673,18 @@ export function StandingsTable({
                   <button
                     type="button"
                     onClick={onToggleSplits}
-                    className={`${chipBase} ${showSplits ? chipActive : chipInactive}`}
+                    disabled={awaitingSplits}
+                    aria-busy={awaitingSplits}
+                    className={`${chipBase} inline-flex items-center gap-1.5 ${
+                      showSplits ? chipActive : chipInactive
+                    } disabled:cursor-wait`}
                   >
-                    {showSplits ? "Hide splits" : "Show splits"}
+                    {awaitingSplits && <Spinner />}
+                    {awaitingSplits
+                      ? "Loading splits…"
+                      : showSplits
+                        ? "Hide splits"
+                        : "Show splits"}
                   </button>
                 </div>
               </div>
@@ -657,26 +704,6 @@ export function StandingsTable({
                 </div>
               </div>
             )}
-
-            <div className="mt-3">
-              <div className="text-surface-muted mb-1">Times</div>
-              <div className="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("timeofday")}
-                  className={`${chipBase} ${displayMode === "timeofday" ? chipActive : chipInactive}`}
-                >
-                  Time of day
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDisplayMode("elapsed")}
-                  className={`${chipBase} ${displayMode === "elapsed" ? chipActive : chipInactive}`}
-                >
-                  Elapsed
-                </button>
-              </div>
-            </div>
           </div>
         )}
       </div>
@@ -694,205 +721,228 @@ export function StandingsTable({
             : "No results match the current course and class selection."}
         </p>
       ) : (
-        <div className="overflow-auto max-h-[calc(100vh-140px)] lg:max-h-[calc(100vh-220px)]">
-          <table className="min-w-full text-sm table-auto">
-            <thead className="bg-surface-emphasis">
-              <tr>
-                <SortableHeader<SortKey>
-                  label="Rider"
-                  sortKey="position"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                  className="sticky left-0 bg-surface-emphasis z-20 min-w-[180px]"
-                />
-                {visibleStages.map((s) => {
-                  const splits = splitsForStage(s.stage_id);
-                  return (
-                    <React.Fragment key={`stage-group-${s.stage_id}`}>
-                      <SortableHeader<SortKey>
-                        label={
-                          <span>
-                            {s.name}
-                            {splits.length > 0 && (
-                              <span className="block text-xs font-normal text-surface-muted">
-                                stage
-                              </span>
-                            )}
-                          </span>
-                        }
-                        sortKey={`stage:${s.stage_id}`}
-                        currentKey={sort.key}
-                        currentDir={sort.dir}
-                        onSort={onSort}
-                        align="right"
-                        className="min-w-[90px] border-l border-surface-border bg-surface-emphasis"
-                      />
-                      {splits.map((sp) => (
+        <div className="relative">
+          {/* While the split query is in flight the existing table stays put
+              and simply dims, so the page doesn't collapse and reflow. */}
+          {awaitingSplits && (
+            <div className="absolute inset-0 z-40 flex items-start justify-center bg-surface/60 pt-10">
+              <span className="inline-flex items-center gap-2 rounded border border-surface-border bg-surface px-3 py-1.5 text-sm text-surface-muted shadow-sm">
+                <Spinner />
+                Loading split times…
+              </span>
+            </div>
+          )}
+          <div
+            className={`overflow-auto max-h-[calc(100vh-140px)] lg:max-h-[calc(100vh-220px)] ${
+              awaitingSplits ? "opacity-50 transition-opacity" : ""
+            }`}
+          >
+            <table className="min-w-full text-sm table-auto">
+              <thead className="bg-surface-emphasis">
+                <tr>
+                  <SortableHeader<SortKey>
+                    label="Rider"
+                    sortKey="position"
+                    currentKey={sort.key}
+                    currentDir={sort.dir}
+                    onSort={onSort}
+                    className="sticky left-0 bg-surface-emphasis z-20 min-w-[180px]"
+                  />
+                  {visibleStages.map((s) => {
+                    const splits = splitsForStage(s.stage_id);
+                    return (
+                      <React.Fragment key={`stage-group-${s.stage_id}`}>
                         <SortableHeader<SortKey>
-                          key={`split-${sp.split_segment_id}`}
                           label={
-                            <span
-                              className={`text-xs font-normal text-surface-muted ${
-                                sp.counts_toward_total ? "" : "opacity-60"
-                              }`}
-                            >
-                              {sp.split_name}
-                              {!sp.counts_toward_total && (
-                                <svg
-                                  viewBox="0 0 24 24"
-                                  width="11"
-                                  height="11"
-                                  className="ml-1 inline-block align-middle text-surface-muted"
-                                  fill="none"
-                                  stroke="currentColor"
-                                  strokeWidth="2"
-                                  strokeLinecap="round"
-                                  strokeLinejoin="round"
-                                  role="img"
-                                  aria-label="Un-timed segment"
-                                >
-                                  <title>
-                                    Un-timed segment — not included in the total
-                                  </title>
-                                  <circle cx="12" cy="12" r="9" />
-                                  <path d="M12 8v4l2 2" />
-                                  <line x1="4" y1="4" x2="20" y2="20" />
-                                </svg>
+                            <span>
+                              {s.name}
+                              {splits.length > 0 && (
+                                <span className="block text-xs font-normal text-surface-muted">
+                                  stage
+                                </span>
                               )}
                             </span>
                           }
-                          sortKey={`split:${sp.split_segment_id}`}
+                          sortKey={`stage:${s.stage_id}`}
                           currentKey={sort.key}
                           currentDir={sort.dir}
                           onSort={onSort}
                           align="right"
-                          className="min-w-[75px] bg-surface-emphasis"
+                          className="min-w-[90px] border-l border-surface-border bg-surface-emphasis"
                         />
-                      ))}
-                    </React.Fragment>
-                  );
-                })}
-                <SortableHeader<SortKey>
-                  label="Total"
-                  sortKey="total_time_ms"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                  align="right"
-                  className="min-w-[90px] border-l border-surface-border bg-surface-emphasis"
-                />
-                <SortableHeader<SortKey>
-                  label="Back"
-                  sortKey="time_back_ms"
-                  currentKey={sort.key}
-                  currentDir={sort.dir}
-                  onSort={onSort}
-                  align="right"
-                  className="min-w-[90px] bg-surface-emphasis"
-                />
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-surface-border">
-              {sorted.map((row) => (
-                <tr key={row.entry_id} className="group hover:bg-surface-hover">
-                  <td className="px-3 py-2 align-top sticky left-0 bg-surface group-hover:bg-surface-hover z-10 min-w-[180px]">
-                    <div className="flex items-baseline gap-2">
-                      <span className="text-surface-muted tabular-nums text-xs w-6 shrink-0">
-                        {row.is_dnf ? "—" : (row.position ?? "")}
-                      </span>
-                      <div className="leading-tight">
-                        {row.person_id ? (
-                          <Link
-                            href={`/person/${row.person_id}`}
-                            className="text-surface-foreground hover:underline"
-                          >
-                            {row.first_name} {row.last_name}
-                          </Link>
-                        ) : (
-                          <span className="text-surface-foreground">
-                            {row.first_name} {row.last_name}
-                          </span>
-                        )}
-                        <div className="text-xs text-surface-muted">
-                          {[row.course_name, row.class_name]
-                            .filter(Boolean)
-                            .join(" · ")}
-                        </div>
-                      </div>
-                    </div>
-                  </td>
-                  {visibleStages.map((s) => {
-                    const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
-                    const splits = splitsForStage(s.stage_id);
-                    const stagePos = stagePositionFor(stage, classSelected);
-                    return (
-                      <React.Fragment key={`stage-group-${s.stage_id}`}>
-                        <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
-                          <div className="leading-tight">
-                            <div className="text-surface-foreground">
-                              {stage?.time_ms
-                                ? formatTime(stage.time_ms, showHundredths)
-                                : ""}
-                            </div>
-                            <div className="text-xs text-surface-muted">
-                              {stagePos ?? ""}
-                            </div>
-                          </div>
-                        </td>
-                        {splits.map((sp) => {
-                          const split = splitMap
-                            .get(row.entry_id)
-                            ?.get(sp.split_segment_id);
-                          const splitPos = splitPositionFor(
-                            split,
-                            classSelected,
-                          );
-                          return (
-                            <td
-                              key={`split-${sp.split_segment_id}`}
-                              className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover"
-                            >
-                              <div
-                                className={`leading-tight ${
+                        {splits.map((sp) => (
+                          <SortableHeader<SortKey>
+                            key={`split-${sp.split_segment_id}`}
+                            label={
+                              <span
+                                className={`text-xs font-normal text-surface-muted ${
                                   sp.counts_toward_total ? "" : "opacity-60"
                                 }`}
                               >
-                                <div className="text-surface-foreground">
-                                  {split?.time_ms
-                                    ? formatTime(split.time_ms, showHundredths)
-                                    : ""}
-                                </div>
-                                <div className="text-xs text-surface-muted">
-                                  {splitPos ?? ""}
-                                </div>
-                              </div>
-                            </td>
-                          );
-                        })}
+                                {sp.split_name}
+                                {!sp.counts_toward_total && (
+                                  <svg
+                                    viewBox="0 0 24 24"
+                                    width="11"
+                                    height="11"
+                                    className="ml-1 inline-block align-middle text-surface-muted"
+                                    fill="none"
+                                    stroke="currentColor"
+                                    strokeWidth="2"
+                                    strokeLinecap="round"
+                                    strokeLinejoin="round"
+                                    role="img"
+                                    aria-label="Un-timed segment"
+                                  >
+                                    <title>
+                                      Un-timed segment — not included in the
+                                      total
+                                    </title>
+                                    <circle cx="12" cy="12" r="9" />
+                                    <path d="M12 8v4l2 2" />
+                                    <line x1="4" y1="4" x2="20" y2="20" />
+                                  </svg>
+                                )}
+                              </span>
+                            }
+                            sortKey={`split:${sp.split_segment_id}`}
+                            currentKey={sort.key}
+                            currentDir={sort.dir}
+                            onSort={onSort}
+                            align="right"
+                            className="min-w-[75px] bg-surface-emphasis"
+                          />
+                        ))}
                       </React.Fragment>
                     );
                   })}
-                  <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
-                    <div className="text-surface-foreground">
-                      {row.is_dnf
-                        ? "DNF"
-                        : formatTime(row.total_time_ms, showHundredths)}
-                    </div>
-                    <div className="text-xs">&nbsp;</div>
-                  </td>
-                  <td className="px-4 py-2 text-right tabular-nums text-surface-muted align-top min-w-[90px]">
-                    <div>
-                      {row.is_dnf || row.time_back_ms == null
-                        ? ""
-                        : `+${formatTime(row.time_back_ms, showHundredths)}`}
-                    </div>
-                    <div className="text-xs">&nbsp;</div>
-                  </td>
+                  <SortableHeader<SortKey>
+                    label="Total"
+                    sortKey="total_time_ms"
+                    currentKey={sort.key}
+                    currentDir={sort.dir}
+                    onSort={onSort}
+                    align="right"
+                    className="min-w-[90px] border-l border-surface-border bg-surface-emphasis"
+                  />
+                  <SortableHeader<SortKey>
+                    label="Back"
+                    sortKey="time_back_ms"
+                    currentKey={sort.key}
+                    currentDir={sort.dir}
+                    onSort={onSort}
+                    align="right"
+                    className="min-w-[90px] bg-surface-emphasis"
+                  />
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-surface-border">
+                {sorted.map((row) => (
+                  <tr
+                    key={row.entry_id}
+                    className="group hover:bg-surface-hover"
+                  >
+                    <td className="px-3 py-2 align-top sticky left-0 bg-surface group-hover:bg-surface-hover z-10 min-w-[180px]">
+                      <div className="flex items-baseline gap-2">
+                        <span className="text-surface-muted tabular-nums text-xs w-6 shrink-0">
+                          {row.is_dnf ? "—" : (row.position ?? "")}
+                        </span>
+                        <div className="leading-tight">
+                          {row.person_id ? (
+                            <Link
+                              href={`/person/${row.person_id}`}
+                              className="text-surface-foreground hover:underline"
+                            >
+                              {row.first_name} {row.last_name}
+                            </Link>
+                          ) : (
+                            <span className="text-surface-foreground">
+                              {row.first_name} {row.last_name}
+                            </span>
+                          )}
+                          <div className="text-xs text-surface-muted">
+                            {[row.course_name, row.class_name]
+                              .filter(Boolean)
+                              .join(" · ")}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    {visibleStages.map((s) => {
+                      const stage = stageMap.get(row.entry_id)?.get(s.stage_id);
+                      const splits = splitsForStage(s.stage_id);
+                      const stagePos = stagePositionFor(stage, classSelected);
+                      return (
+                        <React.Fragment key={`stage-group-${s.stage_id}`}>
+                          <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
+                            <div className="leading-tight">
+                              <div className="text-surface-foreground">
+                                {stage?.time_ms
+                                  ? formatTime(stage.time_ms, showHundredths)
+                                  : ""}
+                              </div>
+                              <div className="text-xs text-surface-muted">
+                                {stagePos ?? ""}
+                              </div>
+                            </div>
+                          </td>
+                          {splits.map((sp) => {
+                            const split = splitMap
+                              .get(row.entry_id)
+                              ?.get(sp.split_segment_id);
+                            const splitPos = splitPositionFor(
+                              split,
+                              classSelected,
+                            );
+                            return (
+                              <td
+                                key={`split-${sp.split_segment_id}`}
+                                className="px-3 py-2 text-right tabular-nums align-top min-w-[75px] bg-surface-hover"
+                              >
+                                <div
+                                  className={`leading-tight ${
+                                    sp.counts_toward_total ? "" : "opacity-60"
+                                  }`}
+                                >
+                                  <div className="text-surface-foreground">
+                                    {split?.time_ms
+                                      ? formatTime(
+                                          split.time_ms,
+                                          showHundredths,
+                                        )
+                                      : ""}
+                                  </div>
+                                  <div className="text-xs text-surface-muted">
+                                    {splitPos ?? ""}
+                                  </div>
+                                </div>
+                              </td>
+                            );
+                          })}
+                        </React.Fragment>
+                      );
+                    })}
+                    <td className="px-4 py-2 text-right tabular-nums align-top min-w-[90px] border-l border-surface-border">
+                      <div className="text-surface-foreground">
+                        {row.is_dnf
+                          ? "DNF"
+                          : formatTime(row.total_time_ms, showHundredths)}
+                      </div>
+                      <div className="text-xs">&nbsp;</div>
+                    </td>
+                    <td className="px-4 py-2 text-right tabular-nums text-surface-muted align-top min-w-[90px]">
+                      <div>
+                        {row.is_dnf || row.time_back_ms == null
+                          ? ""
+                          : `+${formatTime(row.time_back_ms, showHundredths)}`}
+                      </div>
+                      <div className="text-xs">&nbsp;</div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
     </div>
