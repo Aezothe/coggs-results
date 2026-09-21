@@ -3,29 +3,33 @@ import { getServiceClient } from "@/lib/supabase/server";
 import { StandingsTable } from "./StandingsTable";
 import { TagPill } from "@/components/TagPill";
 
-export const dynamic = "force-dynamic";
+// EGRESS FIX 2: was `export const dynamic = "force-dynamic"`, which forced a
+// full set of Supabase queries on every single page view. With revalidate the
+// rendered page is cached and re-fetched at most once per interval per URL
+// variant, regardless of how many spectators are refreshing.
+//
+// 60s is a reasonable live-race value. For events that have finished you can
+// safely raise this to 3600 (or higher) since results no longer change.
+export const revalidate = 60;
 
 export type ScopeType = "overall" | "class" | "age";
 
+// NOTE: the types below intentionally declare only the columns the client
+// actually renders. Adding a field here means also adding it to the matching
+// .select() string, and vice versa — keep them in sync or the value arrives
+// as undefined at runtime.
 export type StandingsRow = {
   entry_id: string;
-  competitor_id: string;
   person_id: string | null;
   first_name: string | null;
   last_name: string | null;
   course_name: string | null;
   class_name: string | null;
-  age_category: string | null;
   total_time_ms: number | null;
   is_dnf: boolean;
   scope_type: ScopeType;
-  scope_value: string | null;
   position: number | null;
-  percentile: number | null;
-  winner_time_ms: number | null;
   time_back_ms: number | null;
-  entrants_in_scope: number | null;
-  finishers_in_scope: number | null;
 };
 
 export type StageTime = {
@@ -35,9 +39,7 @@ export type StageTime = {
   ordinal: number;
   time_ms: number | null;
   stage_position_course: number | null;
-  finishers_course: number | null;
   stage_position_class: number | null;
-  finishers_class: number | null;
 };
 
 export type SplitTime = {
@@ -45,15 +47,11 @@ export type SplitTime = {
   split_segment_id: string;
   split_name: string;
   split_ordinal: number;
-  parent_segment_id: string;
   parent_stage_id: string;
-  parent_stage_ordinal: number;
-  counts_toward_total: boolean;   // NEW
+  counts_toward_total: boolean;
   time_ms: number | null;
   split_position_course: number | null;
-  split_finishers_course: number | null;
   split_position_class: number | null;
-  split_finishers_class: number | null;
 };
 
 type TagRow = {
@@ -101,7 +99,6 @@ async function fetchEventTags(eventId: string): Promise<TagRow[]> {
     .select("tag:tag_id(id, name, category)")
     .eq("event_id", eventId);
   if (error) throw new Error(error.message);
-
   type JoinRow = { tag: TagRow | null };
   return ((data ?? []) as unknown as JoinRow[])
     .map((r) => r.tag)
@@ -122,11 +119,9 @@ async function fetchEventLocations(eventId: string): Promise<string[]> {
     .eq("event_id", eventId)
     .eq("kind", "stage");
   if (error) throw new Error(error.message);
-
   type JoinRow = {
     stage: { location: { name: string } | null } | null;
   };
-
   const names = new Set<string>();
   for (const row of (data ?? []) as unknown as JoinRow[]) {
     const name = row.stage?.location?.name;
@@ -141,10 +136,13 @@ async function fetchStandings(eventId: string): Promise<StandingsRow[]> {
   const all: StandingsRow[] = [];
   let offset = 0;
   while (true) {
+    // EGRESS FIX 3: dropped competitor_id, age_category, scope_value,
+    // percentile, winner_time_ms, entrants_in_scope, finishers_in_scope —
+    // none are referenced anywhere in StandingsTable.
     const { data, error } = await supabase
       .from("standings_scoped")
       .select(
-        "entry_id, competitor_id, person_id, first_name, last_name, course_name, class_name, age_category, total_time_ms, is_dnf, scope_type, scope_value, position, percentile, winner_time_ms, time_back_ms, entrants_in_scope, finishers_in_scope",
+        "entry_id, person_id, first_name, last_name, course_name, class_name, total_time_ms, is_dnf, scope_type, position, time_back_ms",
       )
       .eq("event_id", eventId)
       .in("scope_type", ["overall", "class"])
@@ -167,10 +165,11 @@ async function fetchStageTimes(eventId: string): Promise<StageTime[]> {
   const all: StageTime[] = [];
   let offset = 0;
   while (true) {
+    // EGRESS FIX 3: dropped finishers_course, finishers_class (unused).
     const { data, error } = await supabase
       .from("event_stage_times")
       .select(
-        "entry_id, stage_id, stage_name, ordinal, time_ms, stage_position_course, finishers_course, stage_position_class, finishers_class",
+        "entry_id, stage_id, stage_name, ordinal, time_ms, stage_position_course, stage_position_class",
       )
       .eq("event_id", eventId)
       .order("entry_id", { ascending: true })
@@ -191,10 +190,13 @@ async function fetchSplitTimes(eventId: string): Promise<SplitTime[]> {
   const all: SplitTime[] = [];
   let offset = 0;
   while (true) {
+    // EGRESS FIX 3: dropped parent_segment_id, parent_stage_ordinal,
+    // split_finishers_course, split_finishers_class (unused). parent_segment_id
+    // in particular was a 36-char UUID repeated on every one of ~3,600 rows.
     const { data, error } = await supabase
       .from("event_split_times")
-        .select(
-        "entry_id, split_segment_id, split_name, split_ordinal, parent_segment_id, parent_stage_id, parent_stage_ordinal, counts_toward_total, time_ms, split_position_course, split_finishers_course, split_position_class, split_finishers_class",
+      .select(
+        "entry_id, split_segment_id, split_name, split_ordinal, parent_stage_id, counts_toward_total, time_ms, split_position_course, split_position_class",
       )
       .eq("event_id", eventId)
       // Deterministic order so pagination is stable across pages. Ordering by
@@ -244,6 +246,16 @@ export default async function LeaderboardPage({
   const event = await fetchEvent(eventId);
   if (!event) notFound();
 
+  // Splits are hidden unless ?splits=1, so there is no reason to fetch them on
+  // a default page load. This is the single biggest egress win: the split query
+  // is ~3,600 rows (15 per rider) versus ~240 for stages and ~480 for
+  // standings.
+  //
+  // Safe because onToggleSplits() in StandingsTable calls updateUrl(), which
+  // does a router.replace() — that re-runs this server component with
+  // splits=1, so the data arrives on demand.
+  const wantSplits = sp.splits === "1";
+
   let standings: StandingsRow[] = [];
   let stageTimes: StageTime[] = [];
   let splitTimes: SplitTime[] = [];
@@ -252,11 +264,14 @@ export default async function LeaderboardPage({
   let errorMsg: string | null = null;
 
   try {
-    [standings, stageTimes, splitTimes] = await Promise.all([
-      fetchStandings(eventId),
-      fetchStageTimes(eventId),
-      fetchSplitTimes(eventId),
-    ]);
+    [standings, stageTimes, splitTimes, eventTags, locations] =
+      await Promise.all([
+        fetchStandings(eventId),
+        fetchStageTimes(eventId),
+        wantSplits ? fetchSplitTimes(eventId) : Promise.resolve([]),
+        fetchEventTags(eventId),
+        fetchEventLocations(eventId),
+      ]);
   } catch (e) {
     errorMsg = e instanceof Error ? e.message : String(e);
   }
@@ -269,10 +284,9 @@ export default async function LeaderboardPage({
     standings.filter((r) => r.course_name === initialCourse),
     "class_name",
   );
-  const initialClass =
-    sp.class && classes.includes(sp.class) ? sp.class : "";
+  const initialClass = sp.class && classes.includes(sp.class) ? sp.class : "";
 
-  const initialShowSplits = sp.splits === "1";
+  const initialShowSplits = wantSplits;
   const initialSelectedStageIds =
     sp.stages && sp.stages.length > 0
       ? sp.stages.split(",").filter(Boolean)
@@ -299,7 +313,6 @@ export default async function LeaderboardPage({
             </p>
           )}
         </div>
-
         {event.event_date && (
           <p className="text-sm text-page-muted sm:text-right">
             {formatLongDate(event.event_date)}

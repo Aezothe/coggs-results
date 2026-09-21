@@ -9,6 +9,9 @@ import { useSortedTable } from "@/lib/useSortedTable";
 import { SortableHeader } from "@/components/SortableHeader";
 import type { StandingsRow, StageTime, SplitTime } from "./page";
 
+type DisplayMode = "elapsed" | "timeofday";
+const [displayMode, setDisplayMode] = useState<DisplayMode>("timeofday");
+
 type SplitDef = {
   split_segment_id: string;
   split_name: string;
@@ -641,6 +644,25 @@ export function StandingsTable({
                 </div>
               </div>
             )}
+            <div className="mt-3">
+            <div className="text-surface-muted mb-1">Times</div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setDisplayMode("timeofday")}
+                className={`${chipBase} ${displayMode === "timeofday" ? chipActive : chipInactive}`}
+              >
+                Time of day
+              </button>
+              <button
+                type="button"
+                onClick={() => setDisplayMode("elapsed")}
+                className={`${chipBase} ${displayMode === "elapsed" ? chipActive : chipInactive}`}
+              >
+                Elapsed
+              </button>
+            </div>
+          </div>
           </div>
         )}
       </div>
